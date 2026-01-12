@@ -1,0 +1,27 @@
+name: Deploy to ahnbi2 Server
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to ahnbi2 server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ahnbi2.suwon.ac.kr
+          username: ahnbi2
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            cd ~/etf-trading-project
+            git pull origin main
+            ./start.sh
+            echo "Deployment completed at $(date)"
