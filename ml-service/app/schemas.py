@@ -81,3 +81,55 @@ class HealthResponse(BaseModel):
     remote_db: str
     local_db: str
     timestamp: datetime
+
+
+# Factsheet Schemas
+class ETFCompositionResponse(BaseModel):
+    rank: int
+    ticker: str
+    weight: float
+    stock_name: Optional[str] = None
+    sector: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ETFMonthlySnapshotResponse(BaseModel):
+    id: int
+    year: int
+    month: int
+    snapshot_date: datetime
+    nav: Optional[float] = None
+    monthly_return: Optional[float] = None
+    ytd_return: Optional[float] = None
+    volatility: Optional[float] = None
+    sharpe_ratio: Optional[float] = None
+    max_drawdown: Optional[float] = None
+    compositions: list[ETFCompositionResponse] = []
+
+    class Config:
+        from_attributes = True
+
+
+class FactsheetListItem(BaseModel):
+    id: int
+    year: int
+    month: int
+    snapshot_date: datetime
+
+
+class FactsheetListResponse(BaseModel):
+    count: int
+    factsheets: list[FactsheetListItem]
+
+
+class FactsheetGenerateRequest(BaseModel):
+    year: int
+    month: int
+
+
+class FactsheetGenerateResponse(BaseModel):
+    success: bool
+    message: str
+    snapshot: Optional[ETFMonthlySnapshotResponse] = None

@@ -46,5 +46,5 @@ def get_local_db():
 
 def init_local_db():
     """로컬 DB 테이블 생성"""
-    from app.models import Prediction  # noqa
+    from app.models import Prediction, ETFMonthlySnapshot, ETFComposition  # noqa
     Base.metadata.create_all(bind=local_engine)

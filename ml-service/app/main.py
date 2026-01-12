@@ -5,7 +5,7 @@ import logging
 
 from app.config import settings
 from app.database import init_local_db
-from app.routers import health, data, predictions
+from app.routers import health, data, predictions, factsheet
 
 # 로깅 설정
 logging.basicConfig(
@@ -57,6 +57,7 @@ app.add_middleware(
 app.include_router(health.router, tags=["Health"])
 app.include_router(data.router, prefix="/api/data", tags=["Data"])
 app.include_router(predictions.router, prefix="/api/predictions", tags=["Predictions"])
+app.include_router(factsheet.router, prefix="/api/factsheet", tags=["Factsheet"])
 
 
 @app.get("/")

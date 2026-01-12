@@ -6,6 +6,12 @@
         "-y",
         "@upstash/context7-mcp"
       ]
+    },
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "@playwright/mcp@latest"
+      ]
     }
   }
 }

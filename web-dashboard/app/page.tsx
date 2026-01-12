@@ -1,11 +1,14 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ArrowDown, ArrowUp, Briefcase, LineChart, TrendingUp, DollarSign, AlertCircle } from "lucide-react"
+import { ArrowDown, ArrowUp, Briefcase, LineChart, TrendingUp, DollarSign, AlertCircle, FileText, ChevronRight } from "lucide-react"
+import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { fetchPredictions, checkHealth, type Prediction } from "@/lib/api"
+import { fetchPredictions, checkHealth, fetchLatestFactsheet, type Prediction, type MonthlyFactsheet } from "@/lib/api"
+import { SNOWBALLING_ETF } from "@/lib/types/snowballing-etf"
+import { Button } from "@/components/ui/button"
 import { portfolio, returns } from "@/lib/data"
 import {
   ChartConfig,
@@ -26,6 +29,7 @@ export default function DashboardPage() {
   const [predictions, setPredictions] = useState<Prediction[]>([])
   const [loading, setLoading] = useState(true)
   const [apiStatus, setApiStatus] = useState<"ok" | "error" | "loading">("loading")
+  const [latestFactsheet, setLatestFactsheet] = useState<MonthlyFactsheet | null>(null)
 
   useEffect(() => {
     async function loadData() {
@@ -37,6 +41,14 @@ export default function DashboardPage() {
         ])
         setPredictions(predictionsData)
         setApiStatus(health.status === "unhealthy" ? "error" : "ok")
+
+        // 최신 팩트시트 로드 (별도 try-catch로 실패해도 다른 데이터는 표시)
+        try {
+          const factsheet = await fetchLatestFactsheet()
+          setLatestFactsheet(factsheet)
+        } catch {
+          // 팩트시트 로드 실패 시 무시 (아직 생성되지 않았을 수 있음)
+        }
       } catch {
         setApiStatus("error")
       } finally {
@@ -142,6 +154,108 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* 메뉴 개요 섹션 */}
+      <div>
+        <h3 className="text-lg font-semibold mb-3">메뉴 개요</h3>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Link href="/predictions">
+            <Card className="hover:bg-accent/50 transition-colors cursor-pointer h-full">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">예측 결과</CardTitle>
+                <LineChart className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-muted-foreground">
+                  RSI/MACD 기반 매매 신호 확인 및 종목별 예측 결과 조회
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/portfolio">
+            <Card className="hover:bg-accent/50 transition-colors cursor-pointer h-full">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">포트폴리오</CardTitle>
+                <Briefcase className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-muted-foreground">
+                  보유 종목 현황 및 자산 배분 분석
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/returns">
+            <Card className="hover:bg-accent/50 transition-colors cursor-pointer h-full">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">수익률 분석</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-muted-foreground">
+                  누적/일일 수익률 및 종목별 기여도 분석
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/factsheet">
+            <Card className="hover:bg-accent/50 transition-colors cursor-pointer h-full border-primary/20">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">팩트시트</CardTitle>
+                <FileText className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-muted-foreground">
+                  {SNOWBALLING_ETF.name} 월별 리포트 및 Top-10 종목 구성
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
+      </div>
+
+      {/* Snowballing AI ETF 요약 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            {SNOWBALLING_ETF.name}
+          </CardTitle>
+          <CardDescription>AI 예측 기반 월별 팩트시트 요약</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="space-y-2">
+              <p className="text-sm">{SNOWBALLING_ETF.description}</p>
+              {latestFactsheet ? (
+                <div className="flex items-center gap-4 text-sm">
+                  <span className="text-muted-foreground">
+                    최신 기준: {latestFactsheet.year}년 {latestFactsheet.month}월
+                  </span>
+                  <span className="text-muted-foreground">|</span>
+                  <span>
+                    Top 종목: {latestFactsheet.compositions.slice(0, 3).map(c => c.ticker).join(", ")}
+                    {latestFactsheet.compositions.length > 3 && " ..."}
+                  </span>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  팩트시트 데이터가 아직 생성되지 않았습니다.
+                </p>
+              )}
+            </div>
+            <Link href="/factsheet">
+              <Button variant="outline" size="sm">
+                자세히 보기
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         {/* 포트폴리오 차트 */}
