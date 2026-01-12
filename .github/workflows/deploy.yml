@@ -7,10 +7,20 @@ on:
 
 jobs:
   deploy:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     steps:
       - name: Deploy to ahnbi2 server
-        run: |
-          ssh ahnbi2@ahnbi2.suwon.ac.kr "cd ~/etf-trading-project && git pull origin main && ./start.sh"
-          echo "Deployment completed at $(date)"
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ahnbi2.suwon.ac.kr
+          username: ahnbi2
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          timeout: 60s
+          command_timeout: 10m
+          script: |
+            cd ~/etf-trading-project
+            git pull origin main
+            ./start.sh
+            echo "Deployment completed at $(date)"
