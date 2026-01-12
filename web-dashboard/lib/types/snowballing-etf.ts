@@ -18,7 +18,7 @@ export interface SnowballingETFInfo {
 
 export const SNOWBALLING_ETF: SnowballingETFInfo = {
   name: "Snowballing AI ETF",
-  symbol: "SNOW-AI",
+  symbol: "Snowballing AI ETF",
   description:
     "TabPFN AI 모델 기반 3개월 수익률 예측 Top-10 종목으로 구성된 동일가중 포트폴리오",
   strategy:

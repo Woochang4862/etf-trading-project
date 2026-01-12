@@ -1,528 +1,360 @@
+/* eslint-disable jsx-a11y/alt-text */
 "use client"
 
+import React from "react"
 import {
   Document,
   Page,
   Text,
   View,
   StyleSheet,
+  Font,
 } from "@react-pdf/renderer"
-import { ETFFactSheet } from "@/lib/types/factsheet"
+import { MonthlyFactsheet } from "@/lib/api"
+import { SNOWBALLING_ETF } from "@/lib/types/snowballing-etf"
 
-// PDF 스타일 정의
+// 한글 폰트 등록 (네이버 나눔바른고딕 - Moonspam Repo)
+Font.register({
+  family: "NanumBarunGothic",
+  src: "https://raw.githubusercontent.com/moonspam/NanumBarunGothic/master/NanumBarunGothicSubset.ttf",
+})
+
+Font.register({
+  family: "NanumBarunGothicBold",
+  src: "https://raw.githubusercontent.com/moonspam/NanumBarunGothic/master/NanumBarunGothicBoldSubset.ttf",
+})
+
 const styles = StyleSheet.create({
   page: {
+    flexDirection: "column",
+    backgroundColor: "#FFFFFF",
     padding: 30,
-    fontSize: 10,
-    fontFamily: "Helvetica",
-    backgroundColor: "#ffffff",
+    fontFamily: "NanumBarunGothic",
   },
   header: {
     marginBottom: 20,
-    borderBottom: 2,
-    borderBottomColor: "#4f46e5",
+    borderBottomWidth: 2,
+    borderBottomColor: "#FF6B00", // Orange accent
+    borderStyle: "solid",
     paddingBottom: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
   },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#1f2937",
-    marginBottom: 4,
+  headerTitle: {
+    fontSize: 20,
+    fontFamily: "NanumBarunGothicBold",
+    color: "#000000",
   },
-  subtitle: {
-    fontSize: 12,
-    color: "#6b7280",
+  headerSubtitle: {
+    fontSize: 10,
+    color: "#666666",
+    marginTop: 4,
+  },
+  headerLogo: {
+    fontSize: 14,
+    fontFamily: "NanumBarunGothicBold",
+    color: "#FF6B00",
+  },
+  dateTag: {
+    fontSize: 9,
+    textAlign: "right",
+    color: "#666666",
+    marginTop: 5,
+    marginBottom: 10,
   },
   section: {
     marginBottom: 15,
   },
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: "#1f2937",
-    marginBottom: 8,
-    backgroundColor: "#f3f4f6",
-    padding: 6,
-    borderRadius: 4,
+    fontSize: 12,
+    fontFamily: "NanumBarunGothicBold",
+    color: "#FF6B00",
+    marginBottom: 6,
+    borderBottomWidth: 0.5,
+    borderBottomColor: "#CCCCCC",
+    borderStyle: "solid",
+    paddingBottom: 2,
   },
   row: {
     flexDirection: "row",
-    marginBottom: 4,
+    gap: 15,
   },
-  col2: {
-    flexDirection: "row",
-    gap: 20,
-  },
-  halfCol: {
-    width: "48%",
-  },
-  label: {
-    width: 100,
-    color: "#6b7280",
-    fontSize: 9,
-  },
-  value: {
+  col: {
     flex: 1,
-    fontWeight: "bold",
-    color: "#1f2937",
   },
-  card: {
-    backgroundColor: "#f9fafb",
+  // Table Styles
+  table: {
+    width: "100%",
+    marginBottom: 10,
+  },
+  tableRow: {
+    flexDirection: "row",
+    borderBottomWidth: 0.5,
+    borderBottomColor: "#E0E0E0",
+    borderStyle: "solid",
+    alignItems: "center",
+    minHeight: 18,
+  },
+  tableHeader: {
+    backgroundColor: "#FFF5E6", // Light orange bg
+  },
+  tableCellLabel: {
+    flex: 2,
+    fontSize: 8,
+    color: "#333333",
+    padding: 3,
+  },
+  tableCellValue: {
+    flex: 3,
+    fontSize: 8,
+    padding: 3,
+    textAlign: "right",
+    fontFamily: "NanumBarunGothicBold",
+  },
+  // Box Style
+  infoBox: {
+    backgroundColor: "#FFF5E6",
     padding: 10,
     borderRadius: 4,
     marginBottom: 10,
   },
-  table: {
-    marginTop: 8,
+  infoBoxTitle: {
+    fontSize: 10,
+    fontFamily: "NanumBarunGothicBold",
+    color: "#FF6B00",
+    marginBottom: 4,
   },
-  tableHeader: {
-    flexDirection: "row",
-    backgroundColor: "#e5e7eb",
-    padding: 6,
-    borderRadius: 4,
-    marginBottom: 2,
-  },
-  tableRow: {
-    flexDirection: "row",
-    padding: 6,
-    borderBottom: 1,
-    borderBottomColor: "#e5e7eb",
-  },
-  tableCell: {
-    flex: 1,
-    fontSize: 9,
-  },
-  tableCellRight: {
-    flex: 1,
-    fontSize: 9,
-    textAlign: "right",
-  },
-  tableCellHeader: {
-    flex: 1,
-    fontSize: 9,
-    fontWeight: "bold",
-    color: "#374151",
-  },
-  badge: {
-    backgroundColor: "#fef3c7",
-    color: "#92400e",
-    padding: "2 6",
-    borderRadius: 4,
+  infoBoxText: {
     fontSize: 8,
-    alignSelf: "flex-start",
-  },
-  badgeLow: {
-    backgroundColor: "#d1fae5",
-    color: "#065f46",
-  },
-  badgeMedium: {
-    backgroundColor: "#fef3c7",
-    color: "#92400e",
-  },
-  badgeHigh: {
-    backgroundColor: "#fee2e2",
-    color: "#991b1b",
-  },
-  positive: {
-    color: "#059669",
-  },
-  negative: {
-    color: "#dc2626",
-  },
-  bulletPoint: {
-    marginLeft: 10,
-    marginBottom: 3,
-    fontSize: 9,
-    color: "#4b5563",
-  },
-  metricsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  metricBox: {
-    width: "18%",
-    backgroundColor: "#f3f4f6",
-    padding: 8,
-    borderRadius: 4,
-    alignItems: "center",
-  },
-  metricLabel: {
-    fontSize: 8,
-    color: "#6b7280",
     marginBottom: 2,
+    lineHeight: 1.4,
   },
-  metricValue: {
-    fontSize: 12,
-    fontWeight: "bold",
-    color: "#1f2937",
+  // Performance Table
+  perfTable: {
+    marginTop: 5,
+    borderTopWidth: 1,
+    borderTopColor: "#333333",
+    borderStyle: "solid",
   },
+  perfHeaderCell: {
+    flex: 1,
+    fontSize: 8,
+    padding: 4,
+    textAlign: "center",
+    backgroundColor: "#F5F5F5",
+    fontFamily: "NanumBarunGothicBold",
+  },
+  perfCell: {
+    flex: 1,
+    fontSize: 8,
+    padding: 4,
+    textAlign: "center",
+  },
+  textRed: {
+    color: "#FF0000",
+  },
+  textBlue: {
+    color: "#0000FF",
+  },
+  // Top 10 Table
+  top10Row: {
+    flexDirection: "row",
+    borderBottomWidth: 0.5,
+    borderBottomColor: "#E0E0E0",
+    borderStyle: "solid",
+    paddingVertical: 3,
+  },
+  top10Rank: { width: 30, fontSize: 8, textAlign: "center" },
+  top10Name: { flex: 1, fontSize: 8 },
+  top10Ticker: { width: 50, fontSize: 8, color: "#666666" },
+  top10Weight: { width: 40, fontSize: 8, textAlign: "right" },
+
   footer: {
     position: "absolute",
     bottom: 20,
     left: 30,
     right: 30,
     fontSize: 8,
-    color: "#9ca3af",
+    color: "#999999",
     textAlign: "center",
-    borderTop: 1,
-    borderTopColor: "#e5e7eb",
+    borderTopWidth: 0.5,
+    borderTopColor: "#E0E0E0",
+    borderStyle: "solid",
     paddingTop: 10,
-  },
-  pageNumber: {
-    position: "absolute",
-    bottom: 20,
-    right: 30,
-    fontSize: 8,
-    color: "#9ca3af",
   },
 })
 
-// 숫자 포맷팅 헬퍼
-const formatNumber = (value: number): string => {
-  return value.toLocaleString("en-US")
-}
-
-const formatCurrency = (value: number, decimals = 2): string => {
-  return `$${value.toLocaleString("en-US", {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  })}`
-}
-
-const formatLargeNumber = (value: number): string => {
-  if (value >= 1e12) {
-    return `$${(value / 1e12).toFixed(2)}T`
-  } else if (value >= 1e9) {
-    return `$${(value / 1e9).toFixed(2)}B`
-  } else if (value >= 1e6) {
-    return `$${(value / 1e6).toFixed(2)}M`
-  }
-  return `$${value.toLocaleString()}`
-}
-
-const formatPercent = (value: number, showSign = false): string => {
-  const formatted = value.toFixed(2)
-  if (showSign && value > 0) {
-    return `+${formatted}%`
-  }
-  return `${formatted}%`
-}
-
-const formatDate = (dateString: string): string => {
-  const date = new Date(dateString)
-  return date.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  })
-}
-
-const getRiskBadgeStyle = (level: string) => {
-  switch (level) {
-    case "LOW":
-      return styles.badgeLow
-    case "MEDIUM":
-      return styles.badgeMedium
-    case "HIGH":
-      return styles.badgeHigh
-    default:
-      return styles.badgeMedium
-  }
-}
-
-const getRiskLabel = (level: string) => {
-  switch (level) {
-    case "LOW":
-      return "Low Risk"
-    case "MEDIUM":
-      return "Medium Risk"
-    case "HIGH":
-      return "High Risk"
-    default:
-      return level
-  }
-}
-
 interface FactSheetPDFProps {
-  data: ETFFactSheet
+  data: MonthlyFactsheet
 }
 
-export const FactSheetPDF = ({ data }: FactSheetPDFProps) => (
-  <Document>
-    {/* Page 1: Key Facts, Strategy, Performance */}
-    <Page size="A4" style={styles.page}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>{data.keyFacts.productName}</Text>
-        <Text style={styles.subtitle}>
-          {data.keyFacts.symbol} | Fact Sheet | {formatDate(data.lastUpdated)}
+export const FactSheetPDF = ({ data }: FactSheetPDFProps) => {
+  const isPositive = (val: number | null | undefined) => (val ?? 0) >= 0
+
+  return (
+    <Document>
+      <Page size="A4" style={styles.page}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.headerTitle}>{SNOWBALLING_ETF.name}</Text>
+            <Text style={styles.headerSubtitle}>
+              ({SNOWBALLING_ETF.symbol}) | {SNOWBALLING_ETF.benchmark}
+            </Text>
+          </View>
+          <View>
+            <Text style={styles.headerLogo}>Snowballing AI ETF</Text>
+          </View>
+        </View>
+        <Text style={styles.dateTag}>
+          기준일: {new Date(data.snapshot_date).toLocaleDateString("ko-KR")}
         </Text>
-      </View>
 
-      {/* Key Facts Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Key Facts</Text>
-        <View style={styles.col2}>
-          <View style={styles.halfCol}>
-            <View style={styles.row}>
-              <Text style={styles.label}>Product Name</Text>
-              <Text style={styles.value}>{data.keyFacts.productName}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>Symbol</Text>
-              <Text style={styles.value}>{data.keyFacts.symbol}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>Underlying Index</Text>
-              <Text style={styles.value}>{data.keyFacts.underlyingIndex}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>Listing Date</Text>
-              <Text style={styles.value}>{formatDate(data.keyFacts.listingDate)}</Text>
-            </View>
-          </View>
-          <View style={styles.halfCol}>
-            <View style={styles.row}>
-              <Text style={styles.label}>AUM</Text>
-              <Text style={styles.value}>{formatLargeNumber(data.keyFacts.aum)}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>Expense Ratio</Text>
-              <Text style={styles.value}>{formatPercent(data.keyFacts.expenseRatio)}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>NAV / Price</Text>
-              <Text style={styles.value}>
-                {formatCurrency(data.keyFacts.nav)} / {formatCurrency(data.keyFacts.marketPrice)}
-              </Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>Premium/Discount</Text>
-              <Text style={[styles.value, data.keyFacts.premium >= 0 ? styles.positive : styles.negative]}>
-                {formatPercent(data.keyFacts.premium, true)}
-              </Text>
-            </View>
-          </View>
-        </View>
-      </View>
-
-      {/* Investment Strategy Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Investment Strategy</Text>
-        <View style={styles.card}>
-          <View style={styles.row}>
-            <Text style={styles.label}>Objective</Text>
-            <Text style={[styles.value, { fontSize: 9 }]}>{data.strategy.objective}</Text>
-          </View>
-          <View style={styles.row}>
-            <Text style={styles.label}>Strategy</Text>
-            <Text style={[styles.value, { fontSize: 9 }]}>{data.strategy.strategy}</Text>
-          </View>
-          <View style={{ marginTop: 6 }}>
-            <Text style={[styles.label, { marginBottom: 4 }]}>Key Points</Text>
-            {data.strategy.keyPoints.map((point, index) => (
-              <Text key={index} style={styles.bulletPoint}>
-                - {point}
-              </Text>
-            ))}
-          </View>
-          <View style={[styles.row, { marginTop: 6 }]}>
-            <Text style={styles.label}>Risk Level</Text>
-            <Text style={[styles.badge, getRiskBadgeStyle(data.strategy.riskLevel)]}>
-              {getRiskLabel(data.strategy.riskLevel)}
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Performance Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Performance</Text>
-
-        {/* Performance Table */}
-        <View style={styles.table}>
-          <View style={styles.tableHeader}>
-            <Text style={styles.tableCellHeader}>Period</Text>
-            <Text style={[styles.tableCellHeader, { textAlign: "right" }]}>ETF Return</Text>
-            <Text style={[styles.tableCellHeader, { textAlign: "right" }]}>Benchmark</Text>
-            <Text style={[styles.tableCellHeader, { textAlign: "right" }]}>Difference</Text>
-          </View>
-          {data.performance.returns.map((row, index) => (
-            <View key={index} style={styles.tableRow}>
-              <Text style={styles.tableCell}>{row.periodLabel}</Text>
-              <Text style={[styles.tableCellRight, row.etfReturn >= 0 ? styles.positive : styles.negative]}>
-                {formatPercent(row.etfReturn, true)}
-              </Text>
-              <Text style={[styles.tableCellRight, row.benchmarkReturn >= 0 ? styles.positive : styles.negative]}>
-                {formatPercent(row.benchmarkReturn, true)}
-              </Text>
-              <Text style={[styles.tableCellRight, row.difference >= 0 ? styles.positive : styles.negative]}>
-                {formatPercent(row.difference, true)}
-              </Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Performance Metrics */}
-        <View style={[styles.metricsGrid, { marginTop: 12 }]}>
-          <View style={styles.metricBox}>
-            <Text style={styles.metricLabel}>Volatility</Text>
-            <Text style={styles.metricValue}>{formatPercent(data.performance.metrics.volatility)}</Text>
-          </View>
-          <View style={styles.metricBox}>
-            <Text style={styles.metricLabel}>Sharpe Ratio</Text>
-            <Text style={styles.metricValue}>{data.performance.metrics.sharpeRatio.toFixed(2)}</Text>
-          </View>
-          <View style={styles.metricBox}>
-            <Text style={styles.metricLabel}>Max Drawdown</Text>
-            <Text style={[styles.metricValue, styles.negative]}>
-              {formatPercent(data.performance.metrics.maxDrawdown)}
-            </Text>
-          </View>
-          <View style={styles.metricBox}>
-            <Text style={styles.metricLabel}>Beta</Text>
-            <Text style={styles.metricValue}>{data.performance.metrics.beta.toFixed(2)}</Text>
-          </View>
-          <View style={styles.metricBox}>
-            <Text style={styles.metricLabel}>Alpha</Text>
-            <Text style={[styles.metricValue, data.performance.metrics.alpha >= 0 ? styles.positive : styles.negative]}>
-              {formatPercent(data.performance.metrics.alpha, true)}
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Footer */}
-      <Text style={styles.footer}>
-        This document is for informational purposes only and does not constitute investment advice.
-      </Text>
-      <Text
-        style={styles.pageNumber}
-        render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`}
-        fixed
-      />
-    </Page>
-
-    {/* Page 2: Portfolio Composition & Trading Info */}
-    <Page size="A4" style={styles.page}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>{data.keyFacts.productName}</Text>
-        <Text style={styles.subtitle}>Portfolio Composition & Trading Information</Text>
-      </View>
-
-      {/* Top 10 Holdings */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>
-          Top 10 Holdings ({formatNumber(data.portfolio.holdingsCount)} total holdings | Turnover: {formatPercent(data.portfolio.turnoverRate)})
-        </Text>
-        <View style={styles.table}>
-          <View style={styles.tableHeader}>
-            <Text style={[styles.tableCellHeader, { width: 30 }]}>#</Text>
-            <Text style={[styles.tableCellHeader, { flex: 2 }]}>Name</Text>
-            <Text style={styles.tableCellHeader}>Ticker</Text>
-            <Text style={[styles.tableCellHeader, { textAlign: "right" }]}>Weight</Text>
-            <Text style={[styles.tableCellHeader, { textAlign: "right" }]}>Value</Text>
-          </View>
-          {data.portfolio.topHoldings.map((holding) => (
-            <View key={holding.rank} style={styles.tableRow}>
-              <Text style={[styles.tableCell, { width: 30 }]}>{holding.rank}</Text>
-              <Text style={[styles.tableCell, { flex: 2 }]}>{holding.name}</Text>
-              <Text style={styles.tableCell}>{holding.ticker}</Text>
-              <Text style={styles.tableCellRight}>{formatPercent(holding.weight)}</Text>
-              <Text style={styles.tableCellRight}>{formatLargeNumber(holding.marketValue)}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
-
-      {/* Sector Allocation */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Sector Allocation</Text>
-        <View style={styles.table}>
-          <View style={styles.tableHeader}>
-            <Text style={[styles.tableCellHeader, { flex: 2 }]}>Sector</Text>
-            <Text style={[styles.tableCellHeader, { textAlign: "right" }]}>Weight</Text>
-          </View>
-          {data.portfolio.sectorAllocation.map((sector, index) => (
-            <View key={index} style={styles.tableRow}>
-              <Text style={[styles.tableCell, { flex: 2 }]}>{sector.sector}</Text>
-              <Text style={styles.tableCellRight}>{formatPercent(sector.weight)}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
-
-      {/* Trading & Distribution Info */}
-      <View style={styles.col2}>
-        {/* Trading Info */}
-        <View style={[styles.section, styles.halfCol]}>
-          <Text style={styles.sectionTitle}>Trading Information</Text>
-          <View style={styles.card}>
-            <View style={styles.row}>
-              <Text style={styles.label}>Exchange</Text>
-              <Text style={styles.value}>{data.trading.exchange}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>Currency</Text>
-              <Text style={styles.value}>{data.trading.tradingCurrency}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>Avg Volume (30d)</Text>
-              <Text style={styles.value}>{formatNumber(data.trading.avgVolume30d)}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>Avg Value</Text>
-              <Text style={styles.value}>{formatLargeNumber(data.trading.avgTradingValue)}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>Avg Spread</Text>
-              <Text style={styles.value}>{formatPercent(data.trading.avgSpread)}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Distribution Info */}
-        <View style={[styles.section, styles.halfCol]}>
-          <Text style={styles.sectionTitle}>Distribution</Text>
-          <View style={styles.card}>
-            <View style={styles.row}>
-              <Text style={styles.label}>Annual Yield</Text>
-              <Text style={styles.value}>{formatPercent(data.distribution.annualYield)}</Text>
-            </View>
-            <View style={styles.row}>
-              <Text style={styles.label}>Frequency</Text>
-              <Text style={styles.value}>{data.distribution.frequency}</Text>
-            </View>
-            <View style={{ marginTop: 8 }}>
-              <Text style={[styles.label, { marginBottom: 4 }]}>Recent Distributions</Text>
-              {data.distribution.history.slice(0, 3).map((dist, index) => (
-                <View key={index} style={[styles.row, { marginLeft: 8 }]}>
-                  <Text style={{ fontSize: 8, color: "#6b7280", width: 80 }}>
-                    {formatDate(dist.exDate)}
-                  </Text>
-                  <Text style={{ fontSize: 8, fontWeight: "bold" }}>
-                    {formatCurrency(dist.amount)}
+        <View style={{ flexDirection: "row", gap: 20 }}>
+          {/* Left Column */}
+          <View style={{ flex: 1 }}>
+            {/* Basic Info */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>기본정보</Text>
+              <View style={styles.table}>
+                <View style={[styles.tableRow, styles.tableHeader]}>
+                  <Text style={styles.tableCellLabel}>최초설정일</Text>
+                  <Text style={styles.tableCellValue}>{SNOWBALLING_ETF.inceptionDate}</Text>
+                </View>
+                <View style={styles.tableRow}>
+                  <Text style={styles.tableCellLabel}>기초지수</Text>
+                  <Text style={styles.tableCellValue}>{SNOWBALLING_ETF.benchmark}</Text>
+                </View>
+                <View style={styles.tableRow}>
+                  <Text style={styles.tableCellLabel}>순자산총액</Text>
+                  <Text style={styles.tableCellValue}>
+                    ${data.nav ? (data.nav * 1000000).toLocaleString() : "-"} (추정)
                   </Text>
                 </View>
-              ))}
+                <View style={styles.tableRow}>
+                  <Text style={styles.tableCellLabel}>1주당순자산(NAV)</Text>
+                  <Text style={styles.tableCellValue}>
+                    ${data.nav?.toFixed(2) ?? "-"}
+                  </Text>
+                </View>
+                <View style={styles.tableRow}>
+                  <Text style={styles.tableCellLabel}>총보수</Text>
+                  <Text style={styles.tableCellValue}>{SNOWBALLING_ETF.expenseRatio}</Text>
+                </View>
+                <View style={styles.tableRow}>
+                  <Text style={styles.tableCellLabel}>리밸런싱 주기</Text>
+                  <Text style={styles.tableCellValue}>{SNOWBALLING_ETF.rebalanceFrequency}</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Trading Info */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>거래정보</Text>
+              <View style={styles.table}>
+                <View style={styles.tableRow}>
+                  <Text style={styles.tableCellLabel}>종목코드</Text>
+                  <Text style={styles.tableCellValue}>{SNOWBALLING_ETF.symbol}</Text>
+                </View>
+                <View style={styles.tableRow}>
+                  <Text style={styles.tableCellLabel}>설정단위</Text>
+                  <Text style={styles.tableCellValue}>1주</Text>
+                </View>
+                <View style={styles.tableRow}>
+                  <Text style={styles.tableCellLabel}>거래단위</Text>
+                  <Text style={styles.tableCellValue}>1주</Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>위험지표</Text>
+              <View style={styles.table}>
+                <View style={styles.tableRow}>
+                  <Text style={styles.tableCellLabel}>변동성 (Volatility)</Text>
+                  <Text style={styles.tableCellValue}>{data.volatility?.toFixed(2)}%</Text>
+                </View>
+                <View style={styles.tableRow}>
+                  <Text style={styles.tableCellLabel}>샤프지수 (Sharpe)</Text>
+                  <Text style={styles.tableCellValue}>{data.sharpe_ratio?.toFixed(2)}</Text>
+                </View>
+                <View style={styles.tableRow}>
+                  <Text style={styles.tableCellLabel}>최대낙폭 (MDD)</Text>
+                  <Text style={[styles.tableCellValue, styles.textBlue]}>{data.max_drawdown?.toFixed(2)}%</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          {/* Right Column */}
+          <View style={{ flex: 1.5 }}>
+            {/* Investment Points */}
+            <View style={styles.infoBox}>
+              <Text style={styles.infoBoxTitle}>✅ 투자 포인트</Text>
+              <Text style={styles.infoBoxText}>1. AI 기반 운용 전략으로 성장주에 분산 투자</Text>
+              <Text style={styles.infoBoxText}>2. TabPFN 모델을 활용한 3개월 예상 수익률 Top 10 선정</Text>
+              <Text style={styles.infoBoxText}>3. 기계적 리밸런싱을 통한 감정 배제 및 위험 관리</Text>
+            </View>
+
+            {/* Performance */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>운용성과 (%)</Text>
+              <View style={styles.perfTable}>
+                {/* Header */}
+                <View style={[styles.tableRow, { backgroundColor: "#F9F9F9" }]}>
+                  <Text style={styles.perfHeaderCell}>구분</Text>
+                  <Text style={styles.perfHeaderCell}>1M</Text>
+                  <Text style={styles.perfHeaderCell}>YTD</Text>
+                </View>
+                {/* Row */}
+                <View style={styles.tableRow}>
+                  <Text style={[styles.perfCell, { fontFamily: 'NanumBarunGothicBold' }]}>{SNOWBALLING_ETF.symbol}</Text>
+                  <Text style={[styles.perfCell, isPositive(data.monthly_return) ? styles.textRed : styles.textBlue]}>
+                    {data.monthly_return?.toFixed(2)}
+                  </Text>
+                  <Text style={[styles.perfCell, isPositive(data.ytd_return) ? styles.textRed : styles.textBlue]}>
+                    {data.ytd_return?.toFixed(2)}
+                  </Text>
+                </View>
+              </View>
+              <Text style={{ fontSize: 8, color: '#999', marginTop: 4 }}>
+                * 과거의 운용실적이 미래의 수익을 보장하는 것은 아닙니다.
+              </Text>
+            </View>
+
+            {/* Top 10 Holdings */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>상위 10종목 (Top 10)</Text>
+              <View style={{ borderTopWidth: 1, borderTopColor: '#333', borderStyle: 'solid' }}>
+                <View style={[styles.top10Row, { backgroundColor: '#F9F9F9' }]}>
+                  <Text style={[styles.top10Rank, { fontFamily: 'NanumBarunGothicBold' }]}>No.</Text>
+                  <Text style={[styles.top10Name, { fontFamily: 'NanumBarunGothicBold' }]}>종목명</Text>
+                  <Text style={[styles.top10Ticker, { fontFamily: 'NanumBarunGothicBold' }]}>Ticker</Text>
+                  <Text style={[styles.top10Weight, { fontFamily: 'NanumBarunGothicBold' }]}>비중</Text>
+                </View>
+                {data.compositions.map((comp) => (
+                  <View key={comp.rank} style={styles.top10Row}>
+                    <Text style={styles.top10Rank}>{comp.rank}</Text>
+                    <Text style={styles.top10Name}>{comp.stock_name || comp.ticker}</Text>
+                    <Text style={styles.top10Ticker}>{comp.ticker}</Text>
+                    <Text style={styles.top10Weight}>{comp.weight.toFixed(1)}%</Text>
+                  </View>
+                ))}
+              </View>
             </View>
           </View>
         </View>
-      </View>
 
-      {/* Footer */}
-      <Text style={styles.footer}>
-        This document is for informational purposes only and does not constitute investment advice.
-      </Text>
-      <Text
-        style={styles.pageNumber}
-        render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`}
-        fixed
-      />
-    </Page>
-  </Document>
-)
+        {/* Footer */}
+        <Text style={styles.footer}>
+          본 자료는 펀드의 단순 정보제공을 위해 작성된 것으로써, 본 자료를 투자권유의 목적으로 제시하거나 제공할 수 없습니다.
+          {"\n"}
+          Snowballing Asset Management | http://ahnbi2.suwon.ac.kr/
+        </Text>
+      </Page>
+    </Document>
+  )
+}
 
 export default FactSheetPDF

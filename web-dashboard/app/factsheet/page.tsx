@@ -6,10 +6,10 @@ import {
   Target,
   TrendingUp,
   PieChart as PieChartIcon,
-  Download,
   RefreshCw,
   AlertCircle,
 } from "lucide-react"
+import { PDFDownloadButton } from "@/components/factsheet/PDFDownloadButton"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -145,10 +145,7 @@ export default function FactSheetPage() {
     }
   }
 
-  // PDF 다운로드 (간단한 인쇄 기능)
-  const handlePDFDownload = () => {
-    window.print()
-  }
+
 
   return (
     <div className="space-y-6">
@@ -196,10 +193,7 @@ export default function FactSheetPage() {
           </Select>
 
           {/* PDF 다운로드 버튼 */}
-          <Button variant="outline" onClick={handlePDFDownload} disabled={!factsheet}>
-            <Download className="h-4 w-4 mr-2" />
-            PDF
-          </Button>
+          {factsheet && <PDFDownloadButton data={factsheet} />}
         </div>
       </div>
 
@@ -346,82 +340,80 @@ export default function FactSheetPage() {
           {(factsheet.monthly_return !== null ||
             factsheet.ytd_return !== null ||
             factsheet.nav !== null) && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5" />
-                  운용 성과
-                </CardTitle>
-                <CardDescription>수익률 및 위험 지표</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                  {factsheet.nav !== null && (
-                    <div className="p-4 border rounded-lg text-center">
-                      <p className="text-xs text-muted-foreground mb-1">NAV</p>
-                      <p className="text-xl font-bold">
-                        ${factsheet.nav?.toFixed(2)}
-                      </p>
-                    </div>
-                  )}
-                  {factsheet.monthly_return !== null && (
-                    <div className="p-4 border rounded-lg text-center">
-                      <p className="text-xs text-muted-foreground mb-1">월간 수익률</p>
-                      <p
-                        className={`text-xl font-bold ${
-                          (factsheet.monthly_return ?? 0) >= 0
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5" />
+                    운용 성과
+                  </CardTitle>
+                  <CardDescription>수익률 및 위험 지표</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    {factsheet.nav !== null && (
+                      <div className="p-4 border rounded-lg text-center">
+                        <p className="text-xs text-muted-foreground mb-1">NAV</p>
+                        <p className="text-xl font-bold">
+                          ${factsheet.nav?.toFixed(2)}
+                        </p>
+                      </div>
+                    )}
+                    {factsheet.monthly_return !== null && (
+                      <div className="p-4 border rounded-lg text-center">
+                        <p className="text-xs text-muted-foreground mb-1">월간 수익률</p>
+                        <p
+                          className={`text-xl font-bold ${(factsheet.monthly_return ?? 0) >= 0
                             ? "text-green-600"
                             : "text-red-600"
-                        }`}
-                      >
-                        {(factsheet.monthly_return ?? 0) >= 0 ? "+" : ""}
-                        {factsheet.monthly_return?.toFixed(2)}%
-                      </p>
-                    </div>
-                  )}
-                  {factsheet.ytd_return !== null && (
-                    <div className="p-4 border rounded-lg text-center">
-                      <p className="text-xs text-muted-foreground mb-1">연초대비(YTD)</p>
-                      <p
-                        className={`text-xl font-bold ${
-                          (factsheet.ytd_return ?? 0) >= 0
+                            }`}
+                        >
+                          {(factsheet.monthly_return ?? 0) >= 0 ? "+" : ""}
+                          {factsheet.monthly_return?.toFixed(2)}%
+                        </p>
+                      </div>
+                    )}
+                    {factsheet.ytd_return !== null && (
+                      <div className="p-4 border rounded-lg text-center">
+                        <p className="text-xs text-muted-foreground mb-1">연초대비(YTD)</p>
+                        <p
+                          className={`text-xl font-bold ${(factsheet.ytd_return ?? 0) >= 0
                             ? "text-green-600"
                             : "text-red-600"
-                        }`}
-                      >
-                        {(factsheet.ytd_return ?? 0) >= 0 ? "+" : ""}
-                        {factsheet.ytd_return?.toFixed(2)}%
-                      </p>
-                    </div>
-                  )}
-                  {factsheet.volatility !== null && (
-                    <div className="p-4 border rounded-lg text-center">
-                      <p className="text-xs text-muted-foreground mb-1">변동성</p>
-                      <p className="text-xl font-bold">
-                        {factsheet.volatility?.toFixed(2)}%
-                      </p>
-                    </div>
-                  )}
-                  {factsheet.sharpe_ratio !== null && (
-                    <div className="p-4 border rounded-lg text-center">
-                      <p className="text-xs text-muted-foreground mb-1">샤프지수</p>
-                      <p className="text-xl font-bold">
-                        {factsheet.sharpe_ratio?.toFixed(2)}
-                      </p>
-                    </div>
-                  )}
-                  {factsheet.max_drawdown !== null && (
-                    <div className="p-4 border rounded-lg text-center">
-                      <p className="text-xs text-muted-foreground mb-1">최대낙폭</p>
-                      <p className="text-xl font-bold text-red-600">
-                        {factsheet.max_drawdown?.toFixed(2)}%
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                            }`}
+                        >
+                          {(factsheet.ytd_return ?? 0) >= 0 ? "+" : ""}
+                          {factsheet.ytd_return?.toFixed(2)}%
+                        </p>
+                      </div>
+                    )}
+                    {factsheet.volatility !== null && (
+                      <div className="p-4 border rounded-lg text-center">
+                        <p className="text-xs text-muted-foreground mb-1">변동성</p>
+                        <p className="text-xl font-bold">
+                          {factsheet.volatility?.toFixed(2)}%
+                        </p>
+                      </div>
+                    )}
+                    {factsheet.sharpe_ratio !== null && (
+                      <div className="p-4 border rounded-lg text-center">
+                        <p className="text-xs text-muted-foreground mb-1">샤프지수</p>
+                        <p className="text-xl font-bold">
+                          {factsheet.sharpe_ratio?.toFixed(2)}
+                        </p>
+                      </div>
+                    )}
+                    {factsheet.max_drawdown !== null && (
+                      <div className="p-4 border rounded-lg text-center">
+                        <p className="text-xs text-muted-foreground mb-1">최대낙폭</p>
+                        <p className="text-xl font-bold text-red-600">
+                          {factsheet.max_drawdown?.toFixed(2)}%
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
           {/* Section 3: Top 10 종목 구성 */}
           <Card>
