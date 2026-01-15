@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
     minHeight: 18,
   },
   tableHeader: {
-    backgroundColor: "#FFF5E6", // Light orange bg
+    backgroundColor: "#e6ecffff",
   },
   tableCellLabel: {
     flex: 2,
