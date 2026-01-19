@@ -29,6 +29,8 @@ export interface ReturnData {
   portfolioValue: number
   dailyReturn: number
   cumulativeReturn: number
+  benchmarkReturn: number
+  benchmarkCumulativeReturn: number
 }
 
 // 더미 예측 데이터 (실제로는 FastAPI에서 가져올 예정)
@@ -178,17 +180,33 @@ export const portfolio: PortfolioItem[] = [
 ]
 
 // 더미 수익률 데이터 (최근 30일)
+// 시드 기반 랜덤 생성기
+const seededRandom = (seed: number) => {
+  const x = Math.sin(seed++) * 10000;
+  return x - Math.floor(x);
+};
+
+// 더미 수익률 데이터 (최근 30일)
 export const returns: ReturnData[] = Array.from({ length: 30 }, (_, i) => {
-  const date = new Date()
-  date.setDate(date.getDate() - (29 - i))
-  const dailyReturn = (Math.random() - 0.48) * 4 // -1.92% ~ 2.08%
+  // 기준일을 고정하여 서버/클라이언트 간 일관성 유지 (2024-01-01 기준)
+  const date = new Date("2024-01-01");
+  date.setDate(date.getDate() + i);
+
+  const randomValue = seededRandom(i); // 시드를 인덱스로 사용
+  const dailyReturn = (randomValue - 0.48) * 4; // -1.92% ~ 2.08%
+
+  const benchmarkRandom = seededRandom(i + 200);
+  const benchmarkReturn = (benchmarkRandom - 0.45) * 3; // -1.35% ~ 1.65% (약간 더 안정적)
+
   return {
     date: date.toISOString().split("T")[0],
-    portfolioValue: 50000 + Math.random() * 5000 + i * 100,
+    portfolioValue: 50000 + seededRandom(i + 100) * 5000 + i * 100,
     dailyReturn: parseFloat(dailyReturn.toFixed(2)),
     cumulativeReturn: parseFloat(((i / 30) * 8 + dailyReturn).toFixed(2)),
-  }
-})
+    benchmarkReturn: parseFloat(benchmarkReturn.toFixed(2)),
+    benchmarkCumulativeReturn: parseFloat(((i / 30) * 5 + benchmarkReturn).toFixed(2)),
+  };
+});
 
 // 요약 통계
 export const summary = {

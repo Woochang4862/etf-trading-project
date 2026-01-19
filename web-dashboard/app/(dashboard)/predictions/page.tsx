@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ArrowDown, ArrowUp, RefreshCw, AlertCircle, ChevronRight } from "lucide-react"
+import { ArrowDown, ArrowUp, RefreshCw, AlertCircle, ChevronRight, Search } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import {
   Table,
   TableBody,
@@ -25,6 +26,7 @@ export default function PredictionsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<"ALL" | "BUY" | "SELL" | "HOLD">("ALL")
+  const [searchTerm, setSearchTerm] = useState("")
 
   const loadPredictions = async () => {
     setLoading(true)
@@ -44,9 +46,12 @@ export default function PredictionsPage() {
     loadPredictions()
   }, [])
 
-  const filteredPredictions = filter === "ALL"
-    ? predictions
-    : predictions.filter(p => p.signal === filter)
+  const filteredPredictions = predictions.filter(p => {
+    const matchesFilter = filter === "ALL" ? true : p.signal === filter
+    const matchesSearch = p.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.name.toLowerCase().includes(searchTerm.toLowerCase())
+    return matchesFilter && matchesSearch
+  })
 
   const buyCount = predictions.filter(p => p.signal === "BUY").length
   const sellCount = predictions.filter(p => p.signal === "SELL").length
@@ -65,9 +70,9 @@ export default function PredictionsPage() {
             다시 시도
           </Button>
         </div>
-        <Card className="border-red-200 bg-red-50">
+        <Card className="border-signal-sell-border bg-signal-sell-bg">
           <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-red-600">
+            <div className="flex items-center gap-2 text-signal-sell">
               <AlertCircle className="h-5 w-5" />
               <span>{error}</span>
             </div>
@@ -97,9 +102,9 @@ export default function PredictionsPage() {
 
       {/* 요약 카드 */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Card className="border-green-200 bg-green-50 dark:bg-green-950/20">
+        <Card className="border-signal-buy-border bg-signal-buy-bg">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-green-700 dark:text-green-400">
+            <CardTitle className="text-sm font-medium text-signal-buy">
               매수 신호
             </CardTitle>
           </CardHeader>
@@ -108,10 +113,10 @@ export default function PredictionsPage() {
               <Skeleton className="h-9 w-16" />
             ) : (
               <>
-                <div className="text-3xl font-bold text-green-700 dark:text-green-400">
+                <div className="text-3xl font-bold text-signal-buy">
                   {buyCount}
                 </div>
-                <p className="text-xs text-green-600 dark:text-green-500">
+                <p className="text-xs text-signal-buy">
                   RSI &lt; 30 과매도 구간
                 </p>
               </>
@@ -119,9 +124,9 @@ export default function PredictionsPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-red-200 bg-red-50 dark:bg-red-950/20">
+        <Card className="border-signal-sell-border bg-signal-sell-bg">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-red-700 dark:text-red-400">
+            <CardTitle className="text-sm font-medium text-signal-sell">
               매도 신호
             </CardTitle>
           </CardHeader>
@@ -130,10 +135,10 @@ export default function PredictionsPage() {
               <Skeleton className="h-9 w-16" />
             ) : (
               <>
-                <div className="text-3xl font-bold text-red-700 dark:text-red-400">
+                <div className="text-3xl font-bold text-signal-sell">
                   {sellCount}
                 </div>
-                <p className="text-xs text-red-600 dark:text-red-500">
+                <p className="text-xs text-signal-sell">
                   RSI &gt; 70 과매수 구간
                 </p>
               </>
@@ -141,9 +146,9 @@ export default function PredictionsPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-gray-200 bg-gray-50 dark:bg-gray-950/20">
+        <Card className="border-signal-hold-border bg-signal-hold-bg">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-700 dark:text-gray-400">
+            <CardTitle className="text-sm font-medium text-signal-hold">
               관망 신호
             </CardTitle>
           </CardHeader>
@@ -152,10 +157,10 @@ export default function PredictionsPage() {
               <Skeleton className="h-9 w-16" />
             ) : (
               <>
-                <div className="text-3xl font-bold text-gray-700 dark:text-gray-400">
+                <div className="text-3xl font-bold text-signal-hold">
                   {holdCount}
                 </div>
-                <p className="text-xs text-gray-600 dark:text-gray-500">
+                <p className="text-xs text-signal-hold">
                   30 &lt; RSI &lt; 70 중립 구간
                 </p>
               </>
@@ -164,122 +169,143 @@ export default function PredictionsPage() {
         </Card>
       </div>
 
-      {/* 필터 탭 */}
-      <Tabs defaultValue="ALL" className="space-y-4" onValueChange={(v) => setFilter(v as typeof filter)}>
-        <TabsList>
-          <TabsTrigger value="ALL">전체 ({predictions.length})</TabsTrigger>
-          <TabsTrigger value="BUY" className="text-green-600">매수 ({buyCount})</TabsTrigger>
-          <TabsTrigger value="SELL" className="text-red-600">매도 ({sellCount})</TabsTrigger>
-          <TabsTrigger value="HOLD">관망 ({holdCount})</TabsTrigger>
-        </TabsList>
+      {/* 필터 및 검색 */}
+      <div className="flex flex-col sm:flex-row gap-4 justify-between items-center">
+        <Tabs defaultValue="ALL" onValueChange={(v) => setFilter(v as typeof filter)} className="w-full sm:w-auto">
+          <TabsList>
+            <TabsTrigger value="ALL">전체</TabsTrigger>
+            <TabsTrigger value="BUY" className="text-signal-buy">매수</TabsTrigger>
+            <TabsTrigger value="SELL" className="text-signal-sell">매도</TabsTrigger>
+            <TabsTrigger value="HOLD">관망</TabsTrigger>
+          </TabsList>
+        </Tabs>
 
-        <TabsContent value={filter} className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>예측 상세</CardTitle>
-              <CardDescription>
-                마지막 업데이트: {predictions[0]?.updatedAt || "-"} | 종목을 클릭하면 상세 차트를 볼 수 있습니다
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="space-y-3">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Skeleton key={i} className="h-12 w-full" />
-                  ))}
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
+        <div className="relative w-full sm:w-64">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="종목명 또는 심볼 검색..."
+            className="pl-8"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>예측 상세</CardTitle>
+          <CardDescription>
+            마지막 업데이트: {predictions[0]?.updatedAt || "-"} | 종목을 클릭하면 상세 차트를 볼 수 있습니다
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="min-h-[500px]">
+            {loading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 10 }).map((_, i) => (
+                  <Skeleton key={i} className="h-12 w-full" />
+                ))}
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>종목</TableHead>
+                    <TableHead>현재가</TableHead>
+                    <TableHead>RSI</TableHead>
+                    <TableHead>MACD</TableHead>
+                    <TableHead>신호</TableHead>
+                    <TableHead>신뢰도</TableHead>
+                    <TableHead className="text-right">예상 변동</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredPredictions.length === 0 ? (
                     <TableRow>
-                      <TableHead>종목</TableHead>
-                      <TableHead>현재가</TableHead>
-                      <TableHead>RSI</TableHead>
-                      <TableHead>MACD</TableHead>
-                      <TableHead>신호</TableHead>
-                      <TableHead>신뢰도</TableHead>
-                      <TableHead className="text-right">예상 변동</TableHead>
+                      <TableCell colSpan={7} className="text-center h-24 text-muted-foreground">
+                        검색 결과가 없습니다.
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredPredictions.map((prediction) => (
-                      <TableRow
-                        key={prediction.symbol}
-                        className="cursor-pointer hover:bg-muted/50"
-                        onClick={() => router.push(`/predictions/${prediction.symbol}`)}
-                      >
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <div>
-                              <div className="font-medium">{prediction.symbol}</div>
-                              <div className="text-sm text-muted-foreground">{prediction.name}</div>
-                            </div>
+                  ) : filteredPredictions.map((prediction) => (
+                    <TableRow
+                      key={prediction.symbol}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => router.push(`/predictions/${prediction.symbol}`)}
+                    >
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <div>
+                            <div className="font-medium">{prediction.symbol}</div>
+                            <div className="text-sm text-muted-foreground">{prediction.name}</div>
                           </div>
-                        </TableCell>
-                        <TableCell>${prediction.currentPrice.toFixed(2)}</TableCell>
-                        <TableCell>
-                          <span className={
-                            prediction.rsi < 30 ? "text-green-600 font-medium" :
-                            prediction.rsi > 70 ? "text-red-600 font-medium" : ""
-                          }>
-                            {prediction.rsi.toFixed(1)}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <span className={prediction.macd >= 0 ? "text-green-600" : "text-red-600"}>
-                            {prediction.macd >= 0 ? "+" : ""}{prediction.macd.toFixed(2)}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              prediction.signal === "BUY" ? "default" :
+                        </div>
+                      </TableCell>
+                      <TableCell>${prediction.currentPrice.toFixed(2)}</TableCell>
+                      <TableCell>
+                        <span className={
+                          prediction.rsi < 30 ? "text-signal-buy font-medium" :
+                            prediction.rsi > 70 ? "text-signal-sell font-medium" : ""
+                        }>
+                          {prediction.rsi.toFixed(1)}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className={prediction.macd >= 0 ? "text-signal-buy" : "text-signal-sell"}>
+                          {prediction.macd >= 0 ? "+" : ""}{prediction.macd.toFixed(2)}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            prediction.signal === "BUY" ? "default" :
                               prediction.signal === "SELL" ? "destructive" : "secondary"
-                            }
-                            className={prediction.signal === "BUY" ? "bg-green-600" : ""}
-                          >
-                            {prediction.signal === "BUY" ? "매수" :
-                             prediction.signal === "SELL" ? "매도" : "관망"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                              <div
-                                className={`h-full ${
-                                  prediction.confidence >= 75 ? "bg-green-500" :
-                                  prediction.confidence >= 50 ? "bg-yellow-500" : "bg-red-500"
-                                }`}
-                                style={{ width: `${prediction.confidence}%` }}
-                              />
-                            </div>
-                            <span className="text-sm">{prediction.confidence}%</span>
+                          }
+                          className={prediction.signal === "BUY" ? "bg-signal-buy" : ""}
+                        >
+                          {prediction.signal === "BUY" ? "매수" :
+                            prediction.signal === "SELL" ? "매도" : "관망"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                            <div
+                              className="h-full"
+                              style={{
+                                width: `${prediction.confidence}%`,
+                                background: `linear-gradient(90deg, ${prediction.confidence >= 75 ? "#10B981" :
+                                  prediction.confidence >= 50 ? "#F59E0B" : "#EF4444"
+                                  } 0%, ${prediction.confidence >= 75 ? "#059669" :
+                                    prediction.confidence >= 50 ? "#D97706" : "#DC2626"
+                                  } 100%)`
+                              }}
+                            />
                           </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <div className={`flex items-center gap-1 ${
-                              prediction.predictedChange >= 0 ? "text-green-600" : "text-red-600"
+                          <span className="text-sm">{prediction.confidence}%</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <div className={`flex items-center gap-1 ${prediction.predictedChange >= 0 ? "text-signal-buy" : "text-signal-sell"
                             }`}>
-                              {prediction.predictedChange >= 0 ? (
-                                <ArrowUp className="h-4 w-4" />
-                              ) : (
-                                <ArrowDown className="h-4 w-4" />
-                              )}
-                              {prediction.predictedChange >= 0 ? "+" : ""}{prediction.predictedChange.toFixed(2)}%
-                            </div>
-                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            {prediction.predictedChange >= 0 ? (
+                              <ArrowUp className="h-4 w-4" />
+                            ) : (
+                              <ArrowDown className="h-4 w-4" />
+                            )}
+                            {prediction.predictedChange >= 0 ? "+" : ""}{prediction.predictedChange.toFixed(2)}%
                           </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* 설명 */}
       <Card>

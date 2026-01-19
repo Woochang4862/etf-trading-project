@@ -27,11 +27,15 @@ const chartConfig = {
   },
   dailyReturn: {
     label: "일일 수익률",
-    color: "hsl(var(--chart-2))",
+    color: "var(--chart-2)",
   },
   cumulativeReturn: {
     label: "누적 수익률",
-    color: "hsl(var(--chart-3))",
+    color: "var(--chart-3)",
+  },
+  benchmark: {
+    label: "KOSPI 200",
+    color: "var(--muted-foreground)",
   },
 } satisfies ChartConfig
 
@@ -77,7 +81,7 @@ export default function ReturnsPage() {
             <CardTitle className="text-sm font-medium">누적 수익률</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${latestReturn.cumulativeReturn >= 0 ? "text-green-600" : "text-red-600"}`}>
+            <div className={`text-2xl font-bold ${latestReturn.cumulativeReturn >= 0 ? "text-profit-positive" : "text-profit-negative"}`}>
               {latestReturn.cumulativeReturn >= 0 ? "+" : ""}{latestReturn.cumulativeReturn.toFixed(2)}%
             </div>
             <p className="text-xs text-muted-foreground">
@@ -91,7 +95,7 @@ export default function ReturnsPage() {
             <CardTitle className="text-sm font-medium">일평균 수익률</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${avgDailyReturn >= 0 ? "text-green-600" : "text-red-600"}`}>
+            <div className={`text-2xl font-bold ${avgDailyReturn >= 0 ? "text-profit-positive" : "text-profit-negative"}`}>
               {avgDailyReturn >= 0 ? "+" : ""}{avgDailyReturn.toFixed(2)}%
             </div>
             <p className="text-xs text-muted-foreground">
@@ -117,7 +121,7 @@ export default function ReturnsPage() {
             <CardTitle className="text-sm font-medium">오늘의 수익률</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold flex items-center gap-1 ${latestReturn.dailyReturn >= 0 ? "text-green-600" : "text-red-600"}`}>
+            <div className={`text-2xl font-bold flex items-center gap-1 ${latestReturn.dailyReturn >= 0 ? "text-profit-positive" : "text-profit-negative"}`}>
               {latestReturn.dailyReturn >= 0 ? (
                 <TrendingUp className="h-5 w-5" />
               ) : (
@@ -205,7 +209,7 @@ export default function ReturnsPage() {
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Bar
                     dataKey="dailyReturn"
-                    fill="#3b82f6"
+                    fill="var(--color-dailyReturn)"
                     radius={[4, 4, 0, 0]}
                   />
                 </BarChart>
@@ -217,8 +221,8 @@ export default function ReturnsPage() {
         <TabsContent value="cumulative">
           <Card>
             <CardHeader>
-              <CardTitle>누적 수익률</CardTitle>
-              <CardDescription>30일 누적 수익률 추이</CardDescription>
+              <CardTitle>누적 수익률 비교</CardTitle>
+              <CardDescription>포트폴리오 vs 시장 벤치마크 (KOSPI 200)</CardDescription>
             </CardHeader>
             <CardContent>
               <ChartContainer config={chartConfig} className="h-[350px] w-full">
@@ -240,10 +244,21 @@ export default function ReturnsPage() {
                   <Line
                     type="monotone"
                     dataKey="cumulativeReturn"
-                    stroke="#22c55e"
+                    stroke="var(--color-cumulativeReturn)"
+                    name="포트폴리오"
                     strokeWidth={3}
-                    dot={{ fill: "#22c55e", r: 3 }}
+                    dot={{ fill: "var(--color-cumulativeReturn)", r: 3 }}
                     activeDot={{ r: 5 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="benchmarkCumulativeReturn"
+                    stroke="var(--color-benchmark)"
+                    name="KOSPI 200"
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    dot={false}
+                    activeDot={{ r: 4 }}
                   />
                 </LineChart>
               </ChartContainer>
@@ -278,7 +293,7 @@ export default function ReturnsPage() {
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className={`flex items-center justify-end gap-1 ${item.profitPercent >= 0 ? "text-green-600" : "text-red-600"
+                    <div className={`flex items-center justify-end gap-1 ${item.profitPercent >= 0 ? "text-profit-positive" : "text-profit-negative"
                       }`}>
                       {item.profitPercent >= 0 ? (
                         <ArrowUp className="h-3 w-3" />
@@ -288,14 +303,14 @@ export default function ReturnsPage() {
                       {item.profitPercent >= 0 ? "+" : ""}{item.profitPercent.toFixed(2)}%
                     </div>
                   </TableCell>
-                  <TableCell className={`text-right ${item.profit >= 0 ? "text-green-600" : "text-red-600"}`}>
+                  <TableCell className={`text-right ${item.profit >= 0 ? "text-profit-positive" : "text-profit-negative"}`}>
                     {item.profit >= 0 ? "+" : ""}${item.profit.toLocaleString()}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">
                       <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
                         <div
-                          className={`h-full ${item.profit >= 0 ? "bg-green-500" : "bg-red-500"}`}
+                          className={`h-full ${item.profit >= 0 ? "bg-profit-positive" : "bg-profit-negative"}`}
                           style={{ width: `${Math.max(item.barWidth, 5)}%` }}
                         />
                       </div>

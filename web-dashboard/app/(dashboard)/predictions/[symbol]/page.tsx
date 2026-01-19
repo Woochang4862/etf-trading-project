@@ -58,13 +58,13 @@ export default function PredictionDetailPage({ params }: PageProps) {
   // Transform API data to lightweight-charts format
   const chartData: CandlestickData<Time>[] = forecastData
     ? forecastData.data.map((d) => ({
-        time: d.time as Time,
-        open: d.open,
-        high: d.high,
-        low: d.low,
-        close: d.close,
-        volume: d.volume,
-      }))
+      time: d.time as Time,
+      open: d.open,
+      high: d.high,
+      low: d.low,
+      close: d.close,
+      volume: d.volume,
+    }))
     : []
 
   // Get latest prediction for this symbol
@@ -76,6 +76,25 @@ export default function PredictionDetailPage({ params }: PageProps) {
   const accuracy = completedPredictions.length > 0
     ? ((correctPredictions.length / completedPredictions.length) * 100).toFixed(1)
     : "N/A"
+
+  // Create reference lines for the chart
+  const referenceLines = []
+
+  if (forecastData) {
+    referenceLines.push({
+      price: forecastData.current_price,
+      color: "#3b82f6", // blue-500
+      label: "현재가",
+    })
+  }
+
+  if (latestPrediction) {
+    referenceLines.push({
+      price: latestPrediction.predicted_close,
+      color: latestPrediction.predicted_direction === "UP" ? "#22c55e" : "#ef4444", // green-500 or red-500
+      label: "예측가",
+    })
+  }
 
   return (
     <div className="space-y-6">
@@ -157,13 +176,12 @@ export default function PredictionDetailPage({ params }: PageProps) {
               <Skeleton className="h-8 w-16" />
             ) : latestPrediction ? (
               <div
-                className={`text-2xl font-bold ${
-                  latestPrediction.rsi_value < 30
-                    ? "text-green-600"
-                    : latestPrediction.rsi_value > 70
+                className={`text-2xl font-bold ${latestPrediction.rsi_value < 30
+                  ? "text-green-600"
+                  : latestPrediction.rsi_value > 70
                     ? "text-red-600"
                     : ""
-                }`}
+                  }`}
               >
                 {latestPrediction.rsi_value.toFixed(1)}
               </div>
@@ -210,7 +228,11 @@ export default function PredictionDetailPage({ params }: PageProps) {
               {loading ? (
                 <Skeleton className="h-[400px] w-full" />
               ) : chartData.length > 0 ? (
-                <CandlestickChart data={chartData} height={400} />
+                <CandlestickChart
+                  data={chartData}
+                  height={400}
+                  referenceLines={referenceLines}
+                />
               ) : (
                 <div className="h-[400px] flex items-center justify-center text-muted-foreground">
                   차트 데이터가 없습니다
@@ -276,11 +298,10 @@ export default function PredictionDetailPage({ params }: PageProps) {
                         {prediction.has_performance ? (
                           <div className="space-y-1">
                             <div
-                              className={`font-semibold ${
-                                prediction.actual_return && prediction.actual_return >= 0
-                                  ? "text-green-600"
-                                  : "text-red-600"
-                              }`}
+                              className={`font-semibold ${prediction.actual_return && prediction.actual_return >= 0
+                                ? "text-green-600"
+                                : "text-red-600"
+                                }`}
                             >
                               {prediction.actual_return
                                 ? `${prediction.actual_return >= 0 ? "+" : ""}${prediction.actual_return.toFixed(2)}%`

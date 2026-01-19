@@ -21,7 +21,13 @@ import {
 } from "@/components/ui/chart"
 import { Pie, PieChart as RechartsPie, Cell } from "recharts"
 
-const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8"]
+const COLORS = [
+  "var(--chart-pie-1)",
+  "var(--chart-pie-2)",
+  "var(--chart-pie-3)",
+  "var(--chart-pie-4)",
+  "var(--chart-pie-5)",
+]
 
 const pieData = portfolio.map((item, index) => ({
   name: item.symbol,
@@ -84,10 +90,10 @@ export default function PortfolioPage() {
             <CardTitle className="text-sm font-medium">총 수익</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${totalProfit >= 0 ? "text-green-600" : "text-red-600"}`}>
+            <div className={`text-2xl font-bold ${totalProfit >= 0 ? "text-profit-positive" : "text-profit-negative"}`}>
               {totalProfit >= 0 ? "+" : ""}${totalProfit.toLocaleString()}
             </div>
-            <p className={`text-xs ${totalReturn >= 0 ? "text-green-600" : "text-red-600"}`}>
+            <p className={`text-xs ${totalReturn >= 0 ? "text-profit-positive" : "text-profit-negative"}`}>
               {totalReturn >= 0 ? "+" : ""}{totalReturn.toFixed(2)}% 수익률
             </p>
           </CardContent>
@@ -96,12 +102,12 @@ export default function PortfolioPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-green-600" />
+              <TrendingUp className="h-4 w-4 text-profit-positive" />
               수익 종목
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{profitableCount}</div>
+            <div className="text-2xl font-bold text-profit-positive">{profitableCount}</div>
             <p className="text-xs text-muted-foreground">
               전체의 {((profitableCount / portfolio.length) * 100).toFixed(0)}%
             </p>
@@ -111,12 +117,12 @@ export default function PortfolioPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <TrendingDown className="h-4 w-4 text-red-600" />
+              <TrendingDown className="h-4 w-4 text-profit-negative" />
               손실 종목
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{lossCount}</div>
+            <div className="text-2xl font-bold text-profit-negative">{lossCount}</div>
             <p className="text-xs text-muted-foreground">
               전체의 {((lossCount / portfolio.length) * 100).toFixed(0)}%
             </p>
@@ -194,7 +200,7 @@ export default function PortfolioPage() {
                                 prediction.signal === "BUY" ? "default" :
                                   prediction.signal === "SELL" ? "destructive" : "secondary"
                               }
-                              className={`text-xs ${prediction.signal === "BUY" ? "bg-green-600" : ""}`}
+                              className={`text-xs ${prediction.signal === "BUY" ? "bg-signal-buy" : ""}`}
                             >
                               {prediction.signal === "BUY" ? "매수" :
                                 prediction.signal === "SELL" ? "매도" : "관망"}
@@ -209,7 +215,7 @@ export default function PortfolioPage() {
                         ${item.totalValue.toLocaleString()}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className={`flex items-center justify-end gap-1 ${item.profit >= 0 ? "text-green-600" : "text-red-600"
+                        <div className={`flex items-center justify-end gap-1 ${item.profit >= 0 ? "text-profit-positive" : "text-profit-negative"
                           }`}>
                           {item.profit >= 0 ? (
                             <ArrowUp className="h-3 w-3" />
@@ -220,7 +226,7 @@ export default function PortfolioPage() {
                             {item.profit >= 0 ? "+" : ""}{item.profitPercent.toFixed(2)}%
                           </span>
                         </div>
-                        <div className={`text-xs ${item.profit >= 0 ? "text-green-600" : "text-red-600"}`}>
+                        <div className={`text-xs ${item.profit >= 0 ? "text-profit-positive" : "text-profit-negative"}`}>
                           {item.profit >= 0 ? "+" : ""}${item.profit.toLocaleString()}
                         </div>
                       </TableCell>

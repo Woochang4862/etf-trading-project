@@ -1,0 +1,23 @@
+[tool.poetry]
+package-mode = false
+name = "data-scraping"
+version = "0.1.0"
+description = "TradingView stock data scraping automation using Selenium"
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+selenium = "^4.15.0"
+webdriver-manager = "^4.0.0"
+playwright = "^1.40.0"
+python-dotenv = "^1.0.0"
+
+[tool.poetry.group.dev.dependencies]
+jupyter = "^1.0.0"
+ipykernel = "^6.25.0"
+notebook = "^7.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

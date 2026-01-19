@@ -1,6 +1,20 @@
 #!/bin/bash
 # ETF Trading Pipeline - 원클릭 시작 스크립트 (Nginx 포함)
 # macOS (Docker Desktop) 및 Linux 모두 지원
+#
+# 사용법:
+#   ./start.sh                    # 전체 서비스 빌드 및 시작 (기존 동작)
+#   ./start.sh web-dashboard      # web-dashboard만 빌드 및 재시작
+#   ./start.sh ml-service         # ml-service만 빌드 및 재시작
+#   ./start.sh nginx              # nginx만 재시작
+#   ./start.sh web-dashboard ml-service  # 여러 서비스 빌드 및 재시작
+#
+# 예시:
+#   # 코드 변경 후 Next.js만 빠르게 재빌드
+#   ./start.sh web-dashboard
+#
+#   # ml-service 코드만 변경 후 재빌드
+#   ./start.sh ml-service
 
 cd "$(dirname "$0")"
 
@@ -189,8 +203,19 @@ fi
 
 echo "   사용할 명령: $DOCKER_COMPOSE_CMD"
 
-# Docker Compose 실행
-if ! $DOCKER_COMPOSE_CMD up -d --build; then
+if [ $# -gt 0 ]; then
+    echo ""
+    echo "🎯 대상 서비스만 빌드: $@"
+    if ! $DOCKER_COMPOSE_CMD up -d --build "$@"; then
+        REBUILD_ERROR=true
+    fi
+else
+    if ! $DOCKER_COMPOSE_CMD up -d --build; then
+        REBUILD_ERROR=true
+    fi
+fi
+
+if [ "$REBUILD_ERROR" = true ]; then
     echo ""
     echo "❌ Docker Compose 실행 실패"
     echo ""

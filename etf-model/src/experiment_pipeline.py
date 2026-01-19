@@ -7,6 +7,7 @@ Competition rule compliant: single model per year.
 Usage:
     python -m src.experiment_pipeline --model xgboost --features 150 --years 2020 2021 2022 2023 2024
 """
+
 import gc
 import time
 from datetime import datetime
@@ -25,13 +26,22 @@ from .features.momentum import add_momentum_features, MOMENTUM_FEATURES
 from .features.volatility import add_volatility_features, VOLATILITY_FEATURES
 from .features.volume import add_volume_features, VOLUME_FEATURES
 from .features.returns import add_return_features, RETURN_FEATURES
-from .features.cross_sectional import add_cross_sectional_features, CROSS_SECTIONAL_FEATURES
+from .features.cross_sectional import (
+    add_cross_sectional_features,
+    CROSS_SECTIONAL_FEATURES,
+)
 from .features.enhanced import (
     add_enhanced_features,
     add_enhanced_cross_sectional,
     ENHANCED_FEATURES,
-    ENHANCED_CROSS_SECTIONAL_FEATURES
+    ENHANCED_CROSS_SECTIONAL_FEATURES,
 )
+from .features.patterns import add_pattern_features, PATTERN_FEATURES
+from .features.regime import add_regime_features, REGIME_FEATURES
+from .features.decomposition import add_decomposition_features, DECOMPOSITION_FEATURES
+from .features.interaction import add_interaction_features, INTERACTION_FEATURES
+from .features.autocorr import add_autocorr_features, AUTOCORR_FEATURES
+from .features.portfolio import add_portfolio_features, PORTFOLIO_FEATURES
 from .models.factory import create_model, get_available_models
 from .models.factory import create_model, get_available_models
 from .utils.evaluation import validate_submission, backtest_strategy
@@ -55,9 +65,9 @@ class ExperimentPipeline:
         output_dir: Path = SUBMISSIONS_DIR,
         max_features: int = 100,
         max_train_samples: int = 50000,
-        device: str = 'auto',
+        device: str = "auto",
         pred_chunk_size: int = 5000,
-        timestamp: str = None
+        timestamp: str = None,
     ):
         """
         Initialize pipeline
@@ -86,7 +96,7 @@ class ExperimentPipeline:
         self.timestamp = timestamp or datetime.now().strftime("%Y%m%d_%H%M%S")
 
         self.loader = DataLoader(data_dir)
-        self.preprocessor = Preprocessor(method='robust')
+        self.preprocessor = Preprocessor(method="robust")
         self.feature_cols: List[str] = self._get_all_feature_cols()
         self.selected_features: List[str] = []
         self.results: Dict[int, pd.DataFrame] = {}
@@ -101,26 +111,30 @@ class ExperimentPipeline:
     def _get_all_feature_cols(self) -> List[str]:
         """Get list of all feature columns"""
         all_features = (
-            TECHNICAL_FEATURES +
-            MOMENTUM_FEATURES +
-            VOLATILITY_FEATURES +
-            VOLUME_FEATURES +
-            RETURN_FEATURES +
-            CROSS_SECTIONAL_FEATURES +
-            ENHANCED_FEATURES +
-            ENHANCED_CROSS_SECTIONAL_FEATURES
+            TECHNICAL_FEATURES
+            + MOMENTUM_FEATURES
+            + VOLATILITY_FEATURES
+            + VOLUME_FEATURES
+            + RETURN_FEATURES
+            + CROSS_SECTIONAL_FEATURES
+            + ENHANCED_FEATURES
+            + ENHANCED_CROSS_SECTIONAL_FEATURES
+            + PATTERN_FEATURES
+            + REGIME_FEATURES
+            + DECOMPOSITION_FEATURES
+            + INTERACTION_FEATURES
+            + AUTOCORR_FEATURES
+            + PORTFOLIO_FEATURES
         )
-        features = list(dict.fromkeys([f for f in all_features if f != 'target_3m']))
+        features = list(dict.fromkeys([f for f in all_features if f != "target_3m"]))
         return features
 
     def _select_features(
-        self,
-        panel: pd.DataFrame,
-        max_features: int = 100
+        self, panel: pd.DataFrame, max_features: int = 100
     ) -> List[str]:
         """Select top features by correlation with target"""
         all_features = [c for c in self.feature_cols if c in panel.columns]
-        valid_panel = panel[panel['target_3m'].notna()].copy()
+        valid_panel = panel[panel["target_3m"].notna()].copy()
 
         if len(valid_panel) == 0:
             return all_features[:max_features]
@@ -131,7 +145,7 @@ class ExperimentPipeline:
         for col in all_features:
             if col in sample.columns:
                 try:
-                    corr = sample[col].corr(sample['target_3m'])
+                    corr = sample[col].corr(sample["target_3m"])
                     if not np.isnan(corr):
                         correlations[col] = abs(corr)
                 except Exception:
@@ -146,9 +160,7 @@ class ExperimentPipeline:
         return selected
 
     def _create_features_for_ticker(
-        self,
-        df: pd.DataFrame,
-        ticker: str
+        self, df: pd.DataFrame, ticker: str
     ) -> Optional[pd.DataFrame]:
         """Create features for a single ticker"""
         try:
@@ -162,9 +174,31 @@ class ExperimentPipeline:
             tmp = add_volume_features(tmp)
             tmp = add_return_features(tmp)
             tmp = add_enhanced_features(tmp)
+            tmp = add_pattern_features(tmp)
+            tmp = add_regime_features(tmp)
+            tmp = add_decomposition_features(tmp)
+            tmp = add_interaction_features(tmp)
+            tmp = add_autocorr_features(tmp)
 
-            tmp['date'] = tmp.index
-            tmp['ticker'] = ticker
+            tmp["date"] = tmp.index
+            tmp["ticker"] = ticker
+            tmp = tmp.replace([np.inf, -np.inf], np.nan)
+
+            return tmp
+
+        except Exception:
+            return None
+
+            tmp = df.copy()
+            tmp = add_technical_features(tmp)
+            tmp = add_momentum_features(tmp)
+            tmp = add_volatility_features(tmp)
+            tmp = add_volume_features(tmp)
+            tmp = add_return_features(tmp)
+            tmp = add_enhanced_features(tmp)
+
+            tmp["date"] = tmp.index
+            tmp["ticker"] = ticker
             tmp = tmp.replace([np.inf, -np.inf], np.nan)
 
             return tmp
@@ -177,15 +211,12 @@ class ExperimentPipeline:
         sample_path = self.data_dir / f"{pred_year}_sample_submission.csv"
         if sample_path.exists():
             sample = pd.read_csv(sample_path)
-            dates = sample['date'].unique().tolist()
+            dates = sample["date"].unique().tolist()
             return sorted(dates)
         return []
 
     def _prepare_training_data(
-        self,
-        panel: pd.DataFrame,
-        pred_year: int,
-        train_years: int = 5
+        self, panel: pd.DataFrame, pred_year: int, train_years: int = 5
     ) -> Tuple[pd.DataFrame, pd.Series, Optional[pd.DataFrame], Optional[pd.Series]]:
         """
         Prepare training and validation data
@@ -198,61 +229,63 @@ class ExperimentPipeline:
         # Leakage prevention: cutoff 95 days before prediction year
         pred_start_ts = pd.Timestamp(f"{pred_year}-01-01")
         cutoff_date = pred_start_ts - pd.Timedelta(days=95)
-        train_end = cutoff_date.strftime('%Y-%m-%d')
+        train_end = cutoff_date.strftime("%Y-%m-%d")
 
         # Validation: last 6 months before cutoff
-        valid_start = (cutoff_date - pd.Timedelta(days=180)).strftime('%Y-%m-%d')
+        valid_start = (cutoff_date - pd.Timedelta(days=180)).strftime("%Y-%m-%d")
 
         # Training data
         train_mask = (
-            (panel['date'] >= train_start) &
-            (panel['date'] < valid_start) &
-            panel['target_3m'].notna()
+            (panel["date"] >= train_start)
+            & (panel["date"] < valid_start)
+            & panel["target_3m"].notna()
         )
         train_data = panel[train_mask].copy()
 
         # Validation data
         valid_mask = (
-            (panel['date'] >= valid_start) &
-            (panel['date'] <= train_end) &
-            panel['target_3m'].notna()
+            (panel["date"] >= valid_start)
+            & (panel["date"] <= train_end)
+            & panel["target_3m"].notna()
         )
         valid_data = panel[valid_mask].copy()
 
         # Sampling for training
         if len(train_data) > self.max_train_samples:
-            train_data = train_data.sort_values('date', ascending=False)
+            train_data = train_data.sort_values("date", ascending=False)
             recent_count = self.max_train_samples // 2
             recent_data = train_data.head(recent_count)
             older_data = train_data.iloc[recent_count:].sample(
-                n=min(self.max_train_samples - recent_count, len(train_data) - recent_count),
-                random_state=42
+                n=min(
+                    self.max_train_samples - recent_count,
+                    len(train_data) - recent_count,
+                ),
+                random_state=42,
             )
             train_data = pd.concat([recent_data, older_data])
 
         X_train = train_data[self.selected_features].fillna(0)
-        y_train = train_data['target_3m']
+        y_train = train_data["target_3m"]
 
         X_valid = None
         y_valid = None
         if len(valid_data) > 0:
             # Sample validation data too
             if len(valid_data) > self.max_train_samples // 2:
-                valid_data = valid_data.sample(n=self.max_train_samples // 2, random_state=42)
+                valid_data = valid_data.sample(
+                    n=self.max_train_samples // 2, random_state=42
+                )
             X_valid = valid_data[self.selected_features].fillna(0)
-            y_valid = valid_data['target_3m']
+            y_valid = valid_data["target_3m"]
 
         return X_train, y_train, X_valid, y_valid
 
     def load_data_for_year(
-        self,
-        pred_year: int,
-        train_years: int = 5,
-        verbose: bool = True
+        self, pred_year: int, train_years: int = 5, verbose: bool = True
     ) -> pd.DataFrame:
         """
         Load and prepare data panel for a specific year (model-agnostic)
-        
+
         This includes:
         1. Loading universe
         2. Loading OHLCV data
@@ -270,7 +303,7 @@ class ExperimentPipeline:
         universe = self.loader.load_universe(pred_year)
         if verbose:
             print(f"Universe: {len(universe)} tickers")
-            
+
         # Load data and create features
         if verbose:
             print(f"Loading data from {data_start} to {pred_end}...")
@@ -303,7 +336,7 @@ class ExperimentPipeline:
         del frames
         gc.collect()
 
-        panel['date'] = pd.to_datetime(panel['date'])
+        panel["date"] = pd.to_datetime(panel["date"])
         panel = optimize_memory(panel)
 
         if verbose:
@@ -315,7 +348,12 @@ class ExperimentPipeline:
             print("Adding cross-sectional features...")
         panel = add_cross_sectional_features(panel)
         panel = add_enhanced_cross_sectional(panel)
-        
+
+        # Add portfolio-level features
+        if verbose:
+            print("Adding portfolio-level features...")
+        panel = add_portfolio_features(panel)
+
         return panel
 
     def process_year(
@@ -323,7 +361,7 @@ class ExperimentPipeline:
         pred_year: int,
         train_years: int = 5,
         verbose: bool = True,
-        panel: pd.DataFrame = None
+        panel: pd.DataFrame = None,
     ) -> pd.DataFrame:
         """
         Process a single year
@@ -332,7 +370,7 @@ class ExperimentPipeline:
         2. Select features
         3. Train single model (competition compliant)
         4. Predict for entire year
-        
+
         Args:
             pred_year: Year to predict
             train_years: Number of training years
@@ -342,14 +380,14 @@ class ExperimentPipeline:
         start_time = time.time()
 
         if verbose:
-            print(f"\n{'='*60}")
+            print(f"\n{'=' * 60}")
             print(f"Experiment Pipeline - {self.model_name.upper()}")
             print(f"Processing {pred_year}")
             print(f"  Model: {self.model_name}")
             print(f"  Device: {self.device}")
             print(f"  Max features: {self.max_features}")
             print(f"  Max train samples: {self.max_train_samples}")
-            print(f"{'='*60}")
+            print(f"{'=' * 60}")
 
         required_dates = self._get_required_dates(pred_year)
         if verbose and required_dates:
@@ -370,9 +408,9 @@ class ExperimentPipeline:
             print(f"Selecting top {self.max_features} features...")
             print(f"  Using data prior to {feature_sel_cutoff.date()}")
 
-        history_panel = panel[panel['date'] <= feature_sel_cutoff]
+        history_panel = panel[panel["date"] <= feature_sel_cutoff]
         if len(history_panel) < 1000:
-            history_panel = panel[panel['date'] < pred_start_ts]
+            history_panel = panel[panel["date"] < pred_start_ts]
 
         self.selected_features = self._select_features(history_panel, self.max_features)
         if verbose:
@@ -396,17 +434,19 @@ class ExperimentPipeline:
 
         # Create model via factory
         model_kwargs = {}
-        if self.device != 'auto' and self.model_name in ['xgboost', 'catboost']:
-            model_kwargs['device'] = self.device
+        if self.device != "auto" and self.model_name in ["xgboost", "catboost"]:
+            model_kwargs["device"] = self.device
 
         model = create_model(self.model_name, self.model_params, **model_kwargs)
 
         # Train
         train_start_time = time.time()
         model.fit(
-            X_train, y_train,
-            X_valid=X_valid, y_valid=y_valid,
-            feature_names=self.selected_features
+            X_train,
+            y_train,
+            X_valid=X_valid,
+            y_valid=y_valid,
+            feature_names=self.selected_features,
         )
         train_time = time.time() - train_start_time
 
@@ -430,10 +470,12 @@ class ExperimentPipeline:
         if required_dates:
             target_dates = [pd.to_datetime(d) for d in required_dates]
         else:
-            pred_panel = panel[(panel['date'] >= pred_start) & (panel['date'] <= pred_end)]
-            target_dates = sorted(pred_panel['date'].unique())
+            pred_panel = panel[
+                (panel["date"] >= pred_start) & (panel["date"] <= pred_end)
+            ]
+            target_dates = sorted(pred_panel["date"].unique())
 
-        pred_panel = panel[panel['date'].isin(target_dates)].copy()
+        pred_panel = panel[panel["date"].isin(target_dates)].copy()
 
         if verbose:
             print(f"\nBatch predicting {len(pred_panel):,} rows...")
@@ -460,10 +502,10 @@ class ExperimentPipeline:
             gc.collect()
 
             if verbose and (i + 1) % 20 == 0:
-                print(f"  Chunk {i+1}/{n_chunks} done")
+                print(f"  Chunk {i + 1}/{n_chunks} done")
 
         predictions_all = np.concatenate(predictions_list)
-        pred_panel['prediction'] = predictions_all
+        pred_panel["prediction"] = predictions_all
 
         del X_pred_all, predictions_list
         gc.collect()
@@ -473,32 +515,28 @@ class ExperimentPipeline:
 
         # Select Top-100 for each date
         results = []
-        available_dates = set(pred_panel['date'].unique())
+        available_dates = set(pred_panel["date"].unique())
 
         for date in tqdm(target_dates, desc="Ranking") if verbose else target_dates:
             date_ts = pd.Timestamp(date)
-            date_str = date_ts.strftime('%Y-%m-%d')
+            date_str = date_ts.strftime("%Y-%m-%d")
 
             if date_ts not in available_dates:
                 if results:
                     prev_preds = results[-100:]
                     for rank, pred in enumerate(prev_preds, 1):
-                        results.append({
-                            'date': date_str,
-                            'rank': rank,
-                            'ticker': pred['ticker']
-                        })
+                        results.append(
+                            {"date": date_str, "rank": rank, "ticker": pred["ticker"]}
+                        )
                 continue
 
-            day_data = pred_panel[pred_panel['date'] == date_ts]
-            top_100 = day_data.nlargest(100, 'prediction')
+            day_data = pred_panel[pred_panel["date"] == date_ts]
+            top_100 = day_data.nlargest(100, "prediction")
 
             for rank, (_, row) in enumerate(top_100.iterrows(), 1):
-                results.append({
-                    'date': date_str,
-                    'rank': rank,
-                    'ticker': row['ticker']
-                })
+                results.append(
+                    {"date": date_str, "rank": rank, "ticker": row["ticker"]}
+                )
 
         del panel, model
         gc.collect()
@@ -507,18 +545,22 @@ class ExperimentPipeline:
         elapsed = time.time() - start_time
 
         if verbose:
-            print(f"Generated {len(submission):,} predictions ({len(target_dates)} days)")
-            print(f"Year {pred_year} completed in {elapsed/60:.1f} minutes")
+            print(
+                f"Generated {len(submission):,} predictions ({len(target_dates)} days)"
+            )
+            print(f"Year {pred_year} completed in {elapsed / 60:.1f} minutes")
 
         # Backtest
         try:
-            metrics = backtest_strategy(submission, panel, target_col='target_3m')
+            metrics = backtest_strategy(submission, panel, target_col="target_3m")
             self.metrics[pred_year] = metrics
             if verbose:
                 print(f"Backtest Score ({pred_year}):")
                 print(f"  Mean Return:   {metrics['mean_return']:.6f}")
                 print(f"  Sharpe Ratio:  {metrics['sharpe_ratio']:.4f}")
-                print(f"  Positive Days: {metrics['positive_days']}/{metrics['total_days']}")
+                print(
+                    f"  Positive Days: {metrics['positive_days']}/{metrics['total_days']}"
+                )
         except Exception as e:
             print(f"Backtest failed for {pred_year}: {e}")
 
@@ -529,7 +571,7 @@ class ExperimentPipeline:
         pred_years: List[int] = None,
         train_years: int = 5,
         verbose: bool = True,
-        panels: Dict[int, pd.DataFrame] = None
+        panels: Dict[int, pd.DataFrame] = None,
     ) -> Dict[int, Path]:
         """Run pipeline for all years"""
         if pred_years is None:
@@ -537,9 +579,9 @@ class ExperimentPipeline:
 
         start_time = time.time()
 
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print(f"EXPERIMENT PIPELINE - {self.model_name.upper()}")
-        print("="*60)
+        print("=" * 60)
         print(f"Model: {self.model_name}")
         print(f"Model params: {self.model_params}")
         print(f"Device: {self.device}")
@@ -555,7 +597,10 @@ class ExperimentPipeline:
                 submission = self.process_year(year, train_years, verbose, panel=panel)
                 self.results[year] = submission
 
-                filepath = self.output_dir / f"{year}.{self.model_name}.{self.timestamp}.submission.csv"
+                filepath = (
+                    self.output_dir
+                    / f"{year}.{self.model_name}.{self.timestamp}.submission.csv"
+                )
                 submission.to_csv(filepath, index=False)
                 paths[year] = filepath
 
@@ -567,13 +612,14 @@ class ExperimentPipeline:
             except Exception as e:
                 print(f"Error processing {year}: {e}")
                 import traceback
+
                 traceback.print_exc()
                 continue
 
         elapsed = time.time() - start_time
-        print(f"\n{'='*60}")
-        print(f"Pipeline completed in {elapsed/60:.1f} minutes")
-        print(f"{'='*60}")
+        print(f"\n{'=' * 60}")
+        print(f"Pipeline completed in {elapsed / 60:.1f} minutes")
+        print(f"{'=' * 60}")
 
         self._validate_all()
 
@@ -595,22 +641,28 @@ def main():
     """Main entry point"""
     import argparse
 
-    parser = argparse.ArgumentParser(description='Run ML Experiment Pipeline')
-    parser.add_argument('--model', type=str, required=True,
-                        help=f'Model name: {get_available_models()}')
-    parser.add_argument('--year', type=int, nargs='+', default=None)
-    parser.add_argument('--train-years', type=int, default=5)
-    parser.add_argument('--features', type=int, default=100)
-    parser.add_argument('--samples', type=int, default=50000)
-    parser.add_argument('--chunk-size', type=int, default=5000)
-    parser.add_argument('--device', type=str, default='auto',
-                        choices=['auto', 'cpu', 'cuda', 'mps'])
-    parser.add_argument('--timestamp', type=str, default=None)
-    parser.add_argument('--quiet', action='store_true')
+    parser = argparse.ArgumentParser(description="Run ML Experiment Pipeline")
+    parser.add_argument(
+        "--model", type=str, required=True, help=f"Model name: {get_available_models()}"
+    )
+    parser.add_argument("--year", type=int, nargs="+", default=None)
+    parser.add_argument("--train-years", type=int, default=5)
+    parser.add_argument("--features", type=int, default=100)
+    parser.add_argument("--samples", type=int, default=50000)
+    parser.add_argument("--chunk-size", type=int, default=5000)
+    parser.add_argument(
+        "--device", type=str, default="auto", choices=["auto", "cpu", "cuda", "mps"]
+    )
+    parser.add_argument("--timestamp", type=str, default=None)
+    parser.add_argument("--quiet", action="store_true")
 
     # Model-specific params (as JSON string)
-    parser.add_argument('--params', type=str, default=None,
-                        help='Model params as JSON string, e.g., \'{"alpha": 0.5}\'')
+    parser.add_argument(
+        "--params",
+        type=str,
+        default=None,
+        help="Model params as JSON string, e.g., '{\"alpha\": 0.5}'",
+    )
 
     args = parser.parse_args()
 
@@ -618,6 +670,7 @@ def main():
     model_params = None
     if args.params:
         import json
+
         model_params = json.loads(args.params)
 
     pred_years = args.year if args.year else [2020, 2021, 2022, 2023, 2024]
@@ -629,13 +682,11 @@ def main():
         max_train_samples=args.samples,
         device=args.device,
         pred_chunk_size=args.chunk_size,
-        timestamp=args.timestamp
+        timestamp=args.timestamp,
     )
 
     paths = pipeline.run(
-        pred_years=pred_years,
-        train_years=args.train_years,
-        verbose=not args.quiet
+        pred_years=pred_years, train_years=args.train_years, verbose=not args.quiet
     )
 
     print("\nSubmission files:")

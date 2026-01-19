@@ -11,6 +11,7 @@ services:
       - REMOTE_DB_URL=mysql+pymysql://ahnbi2:bigdata@host.docker.internal:3306/etf2_db
       - LOCAL_DB_PATH=/app/data/predictions.db
       - LOG_LEVEL=INFO
+      - SUBMISSIONS_DIR=/app/submissions/tabpfn_v2
     volumes:
       - ./data:/app/data
       - ./etf-model/submissions:/app/submissions:ro

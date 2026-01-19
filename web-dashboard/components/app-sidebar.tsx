@@ -68,7 +68,7 @@ export function AppSidebar() {
               className="object-contain"
             />
           </div>
-          <span className="font-semibold text-lg">ETF Trading</span>
+          <span className="font-semibold text-lg">Snowballing AI ETF</span>
         </div>
       </SidebarHeader>
       <SidebarContent>
@@ -81,6 +81,7 @@ export function AppSidebar() {
                   <SidebarMenuButton
                     render={<Link href={item.url} />}
                     isActive={pathname === item.url || (item.url === "/dashboard" && pathname === "/")}
+                    className="data-[active=true]:bg-brand-primary/15 data-[active=true]:text-brand-navy dark:data-[active=true]:text-brand-primary data-[active=true]:font-bold touch-manipulation"
                   >
                     <item.icon className="h-4 w-4" />
                     <span>{item.title}</span>

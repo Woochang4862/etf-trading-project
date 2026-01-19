@@ -68,8 +68,8 @@ export function TechSection() {
       <div className="max-w-6xl mx-auto">
         {/* Section Header */}
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            기술 인프라 & <span className="text-[#00E5FF]">투명성</span>
+          <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white">
+            기술 인프라 & <span className="text-brand-primary">투명성</span>
           </h2>
           <p className="text-muted-foreground text-lg">
             Technical Infrastructure - 신뢰와 투명성을 위한 기술 기반
@@ -81,7 +81,7 @@ export function TechSection() {
           {techItems.map((item, index) => (
             <Card
               key={index}
-              className={`hover:border-[#00E5FF]/50 transition-all duration-500 ${isVisible
+              className={`hover:border-brand-primary/50 transition-all duration-500 ${isVisible
                 ? "opacity-100 translate-y-0"
                 : "opacity-0 translate-y-8"
                 }`}
@@ -89,7 +89,7 @@ export function TechSection() {
             >
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                  <div className="w-10 h-10 rounded-lg bg-[#00E5FF]/10 flex items-center justify-center text-[#00E5FF]">
+                  <div className="w-10 h-10 rounded-lg bg-brand-primary/10 flex items-center justify-center text-brand-primary">
                     {item.icon}
                   </div>
                   {item.badge && (
@@ -120,12 +120,12 @@ export function TechSection() {
             }`}
           style={{ transitionDelay: "400ms" }}
         >
-          <Card className="bg-gradient-to-r from-[#002B5B] to-[#003366] border-0">
+          <Card className="bg-gradient-to-r from-brand-navy to-brand-navy-dark border-0">
             <CardContent className="py-12">
-              <h3 className="text-2xl md:text-3xl font-bold text-white mb-4">
+              <h3 className="text-2xl md:text-3xl font-bold text-foreground mb-4">
                 AI가 운용하는 ETF의 미래를 경험하세요
               </h3>
-              <p className="text-gray-300 mb-8 max-w-2xl mx-auto">
+              <p className="text-muted-foreground mb-8 max-w-2xl mx-auto">
                 실시간 예측 결과와 포트폴리오 성과를 직접 확인하고,
                 데이터 기반의 투자 인사이트를 얻어보세요.
               </p>
@@ -133,7 +133,7 @@ export function TechSection() {
                 <Link href="/dashboard">
                   <Button
                     size="lg"
-                    className="bg-[#00E5FF] hover:bg-[#00B4D8] text-[#002B5B] font-semibold"
+                    className="bg-brand-primary hover:bg-brand-primary-dark text-brand-navy font-semibold"
                   >
                     대시보드 시작하기
                     <ArrowRight className="ml-2 h-5 w-5" />
@@ -143,7 +143,7 @@ export function TechSection() {
                   <Button
                     size="lg"
                     variant="outline"
-                    className="border-white/30 text-white hover:bg-white/10"
+                    className="border-white/30 text-foreground hover:bg-white/10"
                   >
                     예측 결과 보기
                   </Button>

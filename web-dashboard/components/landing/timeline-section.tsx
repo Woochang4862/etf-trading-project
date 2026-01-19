@@ -69,8 +69,8 @@ export function TimelineSection() {
       <div className="max-w-4xl mx-auto">
         {/* Section Header */}
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            우리는 이미 <span className="text-[#00E5FF]">실행 중</span>입니다
+          <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white">
+            우리는 이미 <span className="text-brand-primary">실행 중</span>입니다
           </h2>
           <p className="text-muted-foreground text-lg">
             Development Status - 현재까지의 성과
@@ -85,7 +85,7 @@ export function TimelineSection() {
           </div>
           <div className="h-2 bg-muted rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-[#00E5FF] to-[#00B4D8] transition-all duration-1000"
+              className="h-full bg-gradient-to-r from-brand-primary to-brand-primary-dark transition-all duration-1000"
               style={{ width: "75%" }}
             />
           </div>
@@ -110,22 +110,22 @@ export function TimelineSection() {
                 {/* Timeline dot */}
                 <div
                   className={`absolute left-6 w-5 h-5 rounded-full border-2 flex items-center justify-center ${item.status === "completed"
-                    ? "bg-[#00E5FF] border-[#00E5FF]"
+                    ? "bg-brand-primary border-brand-primary"
                     : item.status === "current"
-                      ? "bg-background border-[#00E5FF]"
+                      ? "bg-background border-brand-primary"
                       : "bg-muted border-muted-foreground"
                     }`}
                 >
                   {item.status === "completed" ? (
-                    <Check className="w-3 h-3 text-[#002B5B]" />
+                    <Check className="w-3 h-3 text-brand-navy" />
                   ) : item.status === "current" ? (
-                    <CircleDot className="w-3 h-3 text-[#00E5FF]" />
+                    <CircleDot className="w-3 h-3 text-brand-primary" />
                   ) : null}
                 </div>
 
                 <Card
                   className={`${item.status === "current"
-                    ? "border-[#00E5FF]/50 bg-[#00E5FF]/5"
+                    ? "border-brand-primary/50 bg-brand-primary/5"
                     : ""
                     }`}
                 >
@@ -146,6 +146,6 @@ export function TimelineSection() {
           </div>
         </div>
       </div>
-    </section>
+    </section >
   )
 }

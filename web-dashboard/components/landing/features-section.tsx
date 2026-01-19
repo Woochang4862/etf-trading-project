@@ -76,10 +76,10 @@ export function FeaturesSection() {
       <div className="max-w-6xl mx-auto">
         {/* Section Header */}
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
             성장 및 다변화 전략
           </h2>
-          <p className="text-gray-400 text-lg">
+          <p className="text-muted-foreground text-lg">
             Scalability - 확장 가능한 AI ETF 생태계
           </p>
         </div>
@@ -89,18 +89,18 @@ export function FeaturesSection() {
           {features.map((feature, index) => (
             <Card
               key={index}
-              className={`hover:border-[#00E5FF]/50 transition-all duration-700 ${isVisible
+              className={`hover:border-brand-primary/50 transition-all duration-700 ${isVisible
                 ? "opacity-100 translate-y-0"
                 : "opacity-0 translate-y-8"
                 }`}
               style={{ transitionDelay: `${index * 200}ms` }}
             >
               <CardHeader>
-                <div className="w-14 h-14 rounded-lg bg-[#00E5FF]/20 flex items-center justify-center text-[#00E5FF] mb-4">
+                <div className="w-14 h-14 rounded-lg bg-brand-primary/20 flex items-center justify-center text-brand-primary mb-4">
                   {feature.icon}
                 </div>
-                <CardTitle className="text-white text-xl">{feature.title}</CardTitle>
-                <CardDescription className="text-gray-400">
+                <CardTitle className="text-foreground text-xl">{feature.title}</CardTitle>
+                <CardDescription className="text-muted-foreground">
                   {feature.description}
                 </CardDescription>
               </CardHeader>
@@ -109,9 +109,9 @@ export function FeaturesSection() {
                   {feature.items.map((item, itemIndex) => (
                     <li
                       key={itemIndex}
-                      className="flex items-start gap-2 text-gray-300"
+                      className="flex items-start gap-2 text-muted-foreground"
                     >
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#00E5FF] mt-2 flex-shrink-0" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-brand-primary mt-2 flex-shrink-0" />
                       <span>{item}</span>
                     </li>
                   ))}

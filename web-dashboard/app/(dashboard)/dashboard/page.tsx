@@ -75,9 +75,9 @@ export default function DashboardPage() {
     <div className="space-y-6">
       {/* API 상태 알림 */}
       {apiStatus === "error" && (
-        <Card className="border-yellow-200 bg-yellow-50">
+        <Card className="border-warning-border bg-warning-bg">
           <CardContent className="pt-4 pb-4">
-            <div className="flex items-center gap-2 text-yellow-700">
+            <div className="flex items-center gap-2 text-warning-text">
               <AlertCircle className="h-4 w-4" />
               <span className="text-sm">원격 DB 연결 오류 - 로컬 데이터로 표시 중</span>
             </div>
@@ -93,11 +93,11 @@ export default function DashboardPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-[var(--chart-1)]">
+            <div className="text-2xl font-bold text-brand-primary">
               ${summary.totalValue.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
-              <span className={summary.profitPercent >= 0 ? "text-green-600" : "text-red-600"}>
+              <span className={summary.profitPercent >= 0 ? "text-profit-positive" : "text-profit-negative"}>
                 {summary.profitPercent >= 0 ? "+" : ""}{summary.profitPercent}%
               </span>{" "}
               전일 대비
@@ -111,7 +111,7 @@ export default function DashboardPage() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${summary.totalProfit >= 0 ? "text-green-600" : "text-red-600"}`}>
+            <div className={`text-2xl font-bold ${summary.totalProfit >= 0 ? "text-profit-positive" : "text-profit-negative"}`}>
               {summary.totalProfit >= 0 ? "+" : ""}${summary.totalProfit.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -143,9 +143,9 @@ export default function DashboardPage() {
               <Skeleton className="h-6 w-32" />
             ) : (
               <div className="flex gap-2">
-                <Badge variant="default" className="bg-green-600">매수 {summary.buySignals}</Badge>
-                <Badge variant="destructive">매도 {summary.sellSignals}</Badge>
-                <Badge variant="secondary">관망 {summary.holdSignals}</Badge>
+                <Badge variant="default" className="bg-signal-buy">매수 {summary.buySignals}</Badge>
+                <Badge variant="destructive" className="bg-signal-sell">매도 {summary.sellSignals}</Badge>
+                <Badge variant="secondary" className="bg-signal-hold text-white">관망 {summary.holdSignals}</Badge>
               </div>
             )}
             <p className="text-xs text-muted-foreground mt-2">
@@ -258,7 +258,11 @@ export default function DashboardPage() {
                           prediction.signal === "BUY" ? "default" :
                             prediction.signal === "SELL" ? "destructive" : "secondary"
                         }
-                        className={prediction.signal === "BUY" ? "bg-green-600" : ""}
+                        className={
+                          prediction.signal === "BUY" ? "bg-signal-buy" :
+                            prediction.signal === "SELL" ? "bg-signal-sell" :
+                              "bg-signal-hold text-white"
+                        }
                       >
                         {prediction.signal === "BUY" ? "매수" : prediction.signal === "SELL" ? "매도" : "관망"}
                       </Badge>
@@ -267,9 +271,9 @@ export default function DashboardPage() {
                       <span className="text-muted-foreground">신뢰도</span>
                       <span className="font-medium">{prediction.confidence}%</span>
                       {prediction.predictedChange >= 0 ? (
-                        <ArrowUp className="h-4 w-4 text-green-600" />
+                        <ArrowUp className="h-4 w-4 text-profit-positive" />
                       ) : (
-                        <ArrowDown className="h-4 w-4 text-red-600" />
+                        <ArrowDown className="h-4 w-4 text-profit-negative" />
                       )}
                     </div>
                   </div>
@@ -296,7 +300,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="text-right">
                   <div className="font-medium">${item.totalValue.toLocaleString()}</div>
-                  <div className={`text-sm ${item.profit >= 0 ? "text-green-600" : "text-red-600"}`}>
+                  <div className={`text-sm ${item.profit >= 0 ? "text-profit-positive" : "text-profit-negative"}`}>
                     {item.profit >= 0 ? "+" : ""}{item.profitPercent.toFixed(2)}% ({item.profit >= 0 ? "+" : ""}${item.profit.toLocaleString()})
                   </div>
                 </div>
