@@ -38,8 +38,9 @@ export default function PredictionDetailPage({ params }: PageProps) {
       setError(null)
 
       try {
+        // 210일 데이터 요청 (MA120 계산을 위해 최소 120일 + 90일 예측 기간 필요)
         const [forecast, history] = await Promise.all([
-          fetchCandlestickForecast(symbol, 90),
+          fetchCandlestickForecast(symbol, 210),
           fetchPredictionHistory(symbol, 180),
         ])
         setForecastData(forecast)
@@ -218,10 +219,30 @@ export default function PredictionDetailPage({ params }: PageProps) {
         <TabsContent value="forecast">
           <Card>
             <CardHeader>
-              <CardTitle>캔들스틱 차트 (향후 90일 예측)</CardTitle>
-              <CardDescription className="flex items-center gap-2">
-                <Info className="h-4 w-4" />
-                현재는 더미 데이터입니다. 추후 ML 모델로 실제 예측 데이터로 교체됩니다.
+              <CardTitle>캔들스틱 차트 (210일)</CardTitle>
+              <CardDescription className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Info className="h-4 w-4" />
+                  현재는 더미 데이터입니다. 추후 ML 모델로 실제 예측 데이터로 교체됩니다.
+                </div>
+                <div className="flex flex-wrap gap-4 text-xs">
+                  <span className="flex items-center gap-1">
+                    <span className="w-3 h-0.5 bg-blue-500 inline-block"></span>
+                    MA5
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="w-3 h-0.5 bg-amber-500 inline-block"></span>
+                    MA20
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="w-3 h-0.5 bg-purple-500 inline-block"></span>
+                    MA60
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="w-3 h-0.5 bg-pink-500 inline-block"></span>
+                    MA120
+                  </span>
+                </div>
               </CardDescription>
             </CardHeader>
             <CardContent>

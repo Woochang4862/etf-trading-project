@@ -150,14 +150,14 @@ def get_prediction_history(
 @router.get("/forecast/{symbol}", response_model=CandlestickForecastResponse)
 def get_candlestick_forecast(
     symbol: str,
-    days: int = Query(90, ge=30, le=180, description="예측 일 수"),
+    days: int = Query(90, ge=30, le=365, description="예측 일 수 (MA120 포함시 210일 권장)"),
     current_price: Optional[float] = Query(None, description="현재가 (옵션)")
 ):
     """
     향후 N일간 캔들스틱 예측 데이터 (더미)
 
     - **symbol**: 종목 코드
-    - **days**: 예측 일 수 (기본 90일, 최대 180일)
+    - **days**: 예측 일 수 (기본 90일, 최대 365일, MA120 포함시 210일 권장)
     - **current_price**: 시작 가격 (옵션, 없으면 샘플 데이터 사용)
 
     Note: 현재는 더미 데이터입니다. 추후 ML 모델로 교체 예정.
