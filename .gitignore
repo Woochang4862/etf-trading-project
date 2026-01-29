@@ -16,6 +16,10 @@ ENV/
 data/
 *.db
 *.sqlite
+data-scraping/cookies.json
+*.png
+.sisyphus/
+.playwright-mcp/
 
 # IDE
 .idea/
