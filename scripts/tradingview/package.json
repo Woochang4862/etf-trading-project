@@ -1,0 +1,16 @@
+{
+  "name": "tradingview-stock-fetcher",
+  "version": "1.0.0",
+  "description": "TradingView API를 사용한 주식 데이터 조회",
+  "type": "module",
+  "scripts": {
+    "fetch": "node fetch-stock.js",
+    "fetch:auth": "node fetch-stock-auth.js",
+    "search": "node search-symbol.js",
+    "history": "node fetch-history.js",
+    "batch": "node batch-fetch.js"
+  },
+  "dependencies": {
+    "@mathieuc/tradingview": "^3.5.2"
+  }
+}
