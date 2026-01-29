@@ -1,8 +1,11 @@
+
 # Environment
 .env
 *.env.local
+node_modules/
 
 # Python
+
 __pycache__/
 *.py[cod]
 *$py.class
