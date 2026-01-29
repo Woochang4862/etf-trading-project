@@ -13,6 +13,10 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+# Load environment variables from .env file
+from dotenv import load_dotenv
+load_dotenv()
+
 from tradingview_scraper import TradingViewScraper
 
 

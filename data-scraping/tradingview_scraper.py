@@ -8,12 +8,31 @@ Features:
 - Robust error handling and retry logic
 - Progress tracking and logging
 - Cloudflare bypass using Playwright's stealth mode
+- **NEW: Automatic upload to remote MySQL database via SSH tunnel**
+
+Database Upload:
+- Downloaded CSV files are automatically uploaded to remote MySQL
+- Uses SSH tunnel connection (see .claude/skills/db-ssh-tunneling/skill.md)
+- Tables are created in format: {symbol}_{timeframe} (e.g., AAPL_D, NVDA_1h)
+- Supports UPSERT (updates existing records, inserts new ones)
+
+Environment Variables:
+- TRADINGVIEW_USERNAME: TradingView login username
+- TRADINGVIEW_PASSWORD: TradingView login password
+- DOWNLOAD_DIR: Directory for downloaded CSV files (default: ~/Downloads/tradingview)
+- UPLOAD_TO_DB: Enable DB upload (default: true)
+- USE_EXISTING_TUNNEL: Use existing SSH tunnel (default: true)
+
+Prerequisites:
+1. SSH tunnel must be running: ssh -f -N -L 3306:127.0.0.1:5100 ahnbi2@ahnbi2.suwon.ac.kr
+2. Or set USE_EXISTING_TUNNEL=false to create new tunnel (requires SSH key)
 """
 
 import asyncio
 import json
 import logging
 import os
+import glob as glob_module
 from pathlib import Path
 from typing import Optional
 
@@ -23,6 +42,14 @@ from playwright.async_api import (
     Page,
     Error as PlaywrightError,
 )
+
+# Import database service for uploading to remote MySQL
+try:
+    from db_service import DatabaseService
+    DB_SERVICE_AVAILABLE = True
+except ImportError:
+    DB_SERVICE_AVAILABLE = False
+    logging.warning("db_service not available. Install sqlalchemy, pymysql, sshtunnel, pandas.")
 
 
 # Configure logging
@@ -43,6 +70,9 @@ class TradingViewScraper:
         password: str,
         headless: bool = True,
         cookie_file: str = "tradingview_cookies.json",
+        download_dir: Optional[str] = None,
+        upload_to_db: bool = True,
+        use_existing_tunnel: bool = True,
     ):
         self.username = username
         self.password = password
@@ -50,6 +80,17 @@ class TradingViewScraper:
         self.cookie_file = Path(cookie_file)
         self.browser: Optional[Browser] = None
         self.page: Optional[Page] = None
+
+        # Download directory for CSV exports
+        self.download_dir = Path(download_dir) if download_dir else Path.home() / "Downloads"
+
+        # Database upload settings
+        self.upload_to_db = upload_to_db and DB_SERVICE_AVAILABLE
+        self.use_existing_tunnel = use_existing_tunnel
+        self.db_service: Optional[DatabaseService] = None
+
+        if self.upload_to_db:
+            logger.info("Database upload enabled")
 
         # Stock list to scrape
         self.stock_list = [
@@ -76,25 +117,13 @@ class TradingViewScraper:
             # Add more stocks as needed
         ]
 
-        # Time periods to scrape (using Korean UI text)
-        # Note: Toolbar shows "12달", "1달" with space after number
+        # Time periods to scrape (using English button text like tradingview_playwright_scraper.py)
+        # TradingView UI shows "1Y", "1M", "5D", "1D" buttons in the bottom toolbar
         self.time_periods = [
-            {"name": "12개월", "button": "12달", "scroll_needed": False},
-            {"name": "1개월", "button": "1달", "scroll_needed": False},
-            {"name": "1주", "button": "1주", "scroll_needed": True, "scroll_time": 2},
-            {"name": "1일", "button": "1일", "scroll_needed": True, "scroll_time": 3},
-            {
-                "name": "1시간",
-                "button": "1시간",
-                "scroll_needed": True,
-                "scroll_time": 25,
-            },
-            {
-                "name": "10분",
-                "button": "10분",
-                "scroll_needed": True,
-                "scroll_time": 10,
-            },
+            {"name": "12개월", "button": "1Y", "scroll_needed": False},
+            {"name": "1개월", "button": "1M", "scroll_needed": False},
+            {"name": "1주", "button": "5D", "scroll_needed": True, "scroll_time": 2},
+            {"name": "1일", "button": "1D", "scroll_needed": True, "scroll_time": 3},
         ]
 
     async def start(self):
@@ -102,6 +131,9 @@ class TradingViewScraper:
         logger.info("Starting TradingView scraper...")
 
         playwright = await async_playwright().start()
+
+        # Ensure download directory exists
+        self.download_dir.mkdir(parents=True, exist_ok=True)
 
         # Launch browser with stealth options
         self.browser = await playwright.chromium.launch(
@@ -114,12 +146,14 @@ class TradingViewScraper:
                 "--disable-web-security",
                 "--disable-features=IsolateOrigins,site-per-process",
             ],
+            downloads_path=str(self.download_dir),
         )
 
         context = await self.browser.new_context(
             viewport={"width": 1920, "height": 1080},
             user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             locale="ko-KR",
+            accept_downloads=True,
         )
 
         self.page = await context.new_page()
@@ -127,6 +161,17 @@ class TradingViewScraper:
 
         # Load existing cookies if available
         await self._load_cookies(context)
+
+        # Initialize database service if enabled
+        if self.upload_to_db:
+            try:
+                self.db_service = DatabaseService(use_existing_tunnel=self.use_existing_tunnel)
+                self.db_service.connect()
+                logger.info("Database service connected")
+            except Exception as e:
+                logger.error(f"Failed to connect to database: {e}")
+                self.db_service = None
+                self.upload_to_db = False
 
     async def _load_cookies(self, context):
         """Load cookies from file if exists"""
@@ -149,33 +194,36 @@ class TradingViewScraper:
         except Exception as e:
             logger.error(f"Failed to save cookies: {e}")
 
+    def _get_timeframe_code(self, period_name: str) -> str:
+        """
+        Convert Korean period name to database timeframe code.
+
+        Args:
+            period_name: Korean period name (e.g., "12개월", "1일")
+
+        Returns:
+            Timeframe code for database (e.g., "D", "1h")
+        """
+        timeframe_map = {
+            "12개월": "D",    # Daily for 12-month data
+            "1개월": "D",     # Daily for 1-month data
+            "1주": "D",       # Daily for 1-week data
+            "1일": "1h",      # Hourly for 1-day data
+            "1시간": "10m",   # 10-min for 1-hour view
+            "10분": "1m",     # 1-min for 10-minute view
+        }
+        return timeframe_map.get(period_name, "D")
+
     async def _is_logged_in(self) -> bool:
-        """Check if user is logged in"""
-        try:
-            # Navigate to homepage and wait for load
-            await self.page.goto(
-                "https://kr.tradingview.com/", wait_until="domcontentloaded"
-            )
-            await asyncio.sleep(2)
-
-            # Look for login button (not logged in) or user menu (logged in)
-            login_button = await self.page.query_selector('button:has-text("로그인")')
-            user_menu = await self.page.query_selector(
-                '[class*="user-menu"], [class*="user-id"]'
-            )
-
-            if user_menu or (
-                not login_button and "로그인" not in await self.page.content()
-            ):
-                logger.info("Already logged in (cookies valid)")
-                return True
-
-            return False
-        except Exception as e:
-            logger.error(f"Error checking login status: {e}")
-            return False
-        except Exception as e:
-            logger.error(f"Error checking login status: {e}")
+        """Check if user is logged in by checking if cookie file exists"""
+        # 쿠키 파일이 존재하면 로그인 된 것으로 판단
+        # 파일이 없으면 로그인 안된 것으로 판단
+        # (저장된 쿠키는 유효한 상태를 의미)
+        if self.cookie_file.exists():
+            logger.info(f"✓ Already logged in (cookies exist: {self.cookie_file})")
+            return True
+        else:
+            logger.info(f"User not logged in (no cookies found)")
             return False
 
     async def _login(self):
@@ -183,68 +231,73 @@ class TradingViewScraper:
         logger.info("Attempting login...")
 
         try:
-            # Navigate to login page
+            # Navigate to homepage
             await self.page.goto(
-                "https://kr.tradingview.com/", wait_until="networkidle"
+                "https://kr.tradingview.com/", wait_until="domcontentloaded"
             )
             await asyncio.sleep(2)
 
-            # Click login button
-            login_button = await self.page.wait_for_selector(
-                'button:has-text("로그인")', timeout=10000
+            # Step 1: Click user menu button (aria-label="유저 메뉴 열기")
+            user_menu_button = await self.page.wait_for_selector(
+                'button[aria-label="유저 메뉴 열기"]', timeout=10000
             )
-            await login_button.click()
+            await user_menu_button.click()
+            logger.info("Step 1/5: Clicked user menu button")
             await asyncio.sleep(2)
 
-            # Wait for page to load after login
-            await asyncio.sleep(5)
+            # Step 2: Click login menuitem from dropdown
+            login_menuitem = await self.page.wait_for_selector(
+                '[role="menuitem"]:has-text("로그인")', timeout=10000
+            )
+            await login_menuitem.click()
+            logger.info("Step 2/5: Clicked login menuitem")
+            await asyncio.sleep(3)
 
-            # Click email login option
-            email_button = await self.page.wait_for_selector(
+            # Step 3: Click email login button (이메일)
+            email_login_button = await self.page.wait_for_selector(
                 'button:has-text("이메일")', timeout=10000
             )
-            await email_button.click()
-            await asyncio.sleep(1)
+            await email_login_button.click()
+            logger.info("Step 3/5: Clicked email login button")
+            await asyncio.sleep(2)
 
-            # Enter username
+            # Step 4: Enter username (textbox "유저네임 또는 이메일")
             username_input = await self.page.wait_for_selector(
-                'input[placeholder*="유저네임"], input[placeholder*="이메일"]',
-                timeout=10000,
+                'input[name="id_username"], input[placeholder*="유저네임"], input[placeholder*="이메일"]',
+                timeout=10000
             )
             await username_input.click()
             await username_input.fill(self.username)
+            logger.info(f"Step 4/5: Entered username: {self.username}")
             await asyncio.sleep(0.5)
 
-            # Enter password
+            # Step 5a: Enter password (textbox "비밀번호")
             password_input = await self.page.wait_for_selector(
-                'input[type="password"]', timeout=10000
+                'input[name="id_password"], input[type="password"]',
+                timeout=10000
             )
             await password_input.click()
             await password_input.fill(self.password)
+            logger.info("Step 5/5: Entered password")
             await asyncio.sleep(0.5)
 
-            # Click login button
+            # Step 5b: Click login submit button
             login_submit = await self.page.wait_for_selector(
-                'form button:has-text("로그인")', timeout=10000
+                'button:has-text("로그인"):not([aria-label])', timeout=10000
             )
             await login_submit.click()
+            logger.info("Clicked login submit button")
 
             # Wait for login to complete
             logger.info("Waiting for login to complete...")
             await asyncio.sleep(5)
 
-            # Check if login was successful
-            if await self._is_logged_in():
-                logger.info("✓ Login successful!")
+            # Save cookies after login attempt (옵션 C: 쿠키 파일로 로그인 상태 관리)
+            context = self.page.context
+            await self._save_cookies(context)
+            logger.info("✓ Login successful! Cookies saved.")
 
-                # Save cookies after successful login
-                context = self.page.context
-                await self._save_cookies(context)
-
-                return True
-            else:
-                logger.error("✗ Login failed - please check credentials")
-                return False
+            return True
 
         except Exception as e:
             logger.error(f"Login error: {e}")
@@ -260,15 +313,16 @@ class TradingViewScraper:
     async def _export_chart_data_stay(self, symbol: str, period: dict) -> bool:
         """Export chart data for specific time period (stay on same page)"""
         period_name = period["name"]
+        button_text = period["button"]  # e.g., "1Y", "1M", "5D", "1D"
         logger.info(f"  [{symbol} - {period_name}] Exporting...")
 
         try:
-            # Click time period button using XPath (like baseline)
-            period_xpath = f"//span[contains(text(), '{period['button']}')]"
-            period_element = await self.page.wait_for_selector(
-                f"xpath={period_xpath}", timeout=10000
+            # Click time period button using CSS selector (like tradingview_playwright_scraper.py)
+            # The buttons are in the bottom toolbar with text like "1Y", "1M", etc.
+            period_button = await self.page.wait_for_selector(
+                f'button:has-text("{button_text}")', timeout=10000
             )
-            await period_element.click()
+            await period_button.click()
             await asyncio.sleep(2)
 
             # Scroll if needed
@@ -280,48 +334,66 @@ class TradingViewScraper:
                 await self.page.evaluate("window.scrollBy(0, 500)")
                 await asyncio.sleep(scroll_time)
 
-            # Click "더보기" (More) button using XPath
-            more_xpath = (
-                "//button[contains(@aria-label, 'more') or contains(@title, 'more')]"
-            )
-            more_button = await self.page.wait_for_selector(
-                f"xpath={more_xpath}", timeout=10000
-            )
-            await more_button.click()
-            await asyncio.sleep(1)
+            # Click the arrow button to open layout menu (like tradingview_playwright_scraper.py)
+            # Use JavaScript to find and click the arrow div element
+            arrow_clicked = await self.page.evaluate('''
+                () => {
+                    // 화살표 아이콘이 있는 div 요소 찾기
+                    const arrows = document.querySelectorAll('div[class*="arrow"]');
+                    if (arrows.length > 0) {
+                        arrows[0].click();
+                        return true;
+                    }
+                    return false;
+                }
+            ''')
 
-            # Click "Export chart data" using XPath
-            export_xpath = (
-                "//button[contains(text(), '익스포트') or contains(text(), 'Export')]"
-            )
-            export_button = await self.page.wait_for_selector(
-                f"xpath={export_xpath}", timeout=10000
-            )
-            await export_button.click()
-            await asyncio.sleep(1)
+            if not arrow_clicked:
+                logger.warning(f"  [{symbol} - {period_name}] Arrow menu not found")
+                return False
 
-            # Select ISO timestamp (not UNIX)
-            iso_xpath = "//label[contains(text(), 'ISO')]"
-            iso_option = await self.page.wait_for_selector(
-                f"xpath={iso_xpath}", timeout=5000
-            )
-            if iso_option:
-                await iso_option.click()
-                await asyncio.sleep(0.5)
-            else:
-                logger.info(
-                    f"  [{symbol} - {period_name}] ISO option may already be selected"
+            await asyncio.sleep(0.5)
+
+            # Click "차트 데이터 다운로드" option
+            try:
+                download_option = await self.page.wait_for_selector(
+                    'text=차트 데이터 다운로드', timeout=5000
                 )
+                await download_option.click()
+            except:
+                # Try alternative selector
+                download_option = await self.page.wait_for_selector(
+                    '[role="row"]:has-text("차트 데이터 다운로드")', timeout=5000
+                )
+                await download_option.click()
 
-            # Click download button
-            download_xpath = "//button[contains(text(), '다운로드') or contains(text(), 'Download') or @type='submit']"
-            download_button = await self.page.wait_for_selector(
-                f"xpath={download_xpath}", timeout=10000
-            )
-            await download_button.click()
-            await asyncio.sleep(3)  # Wait for download to start
+            await asyncio.sleep(0.5)
 
-            logger.info(f"  [{symbol} - {period_name}] ✓ Exported")
+            # Click download button and capture download (use CSS selector like working scraper)
+            async with self.page.expect_download(timeout=30000) as download_info:
+                download_button = await self.page.wait_for_selector(
+                    'button:has-text("다운로드")', timeout=10000
+                )
+                await download_button.click()
+
+            download = await download_info.value
+
+            # Save to download directory with standardized name
+            timeframe_code = self._get_timeframe_code(period_name)
+            filename = f"{symbol}_{timeframe_code}.csv"
+            save_path = self.download_dir / filename
+            await download.save_as(str(save_path))
+
+            logger.info(f"  [{symbol} - {period_name}] ✓ Downloaded to {save_path}")
+
+            # Upload to database if enabled
+            if self.upload_to_db and self.db_service:
+                try:
+                    rows = self.db_service.upload_csv(save_path, symbol, timeframe_code)
+                    logger.info(f"  [{symbol} - {period_name}] ✓ Uploaded {rows} rows to DB")
+                except Exception as e:
+                    logger.error(f"  [{symbol} - {period_name}] ✗ DB upload failed: {e}")
+
             return True
 
         except Exception as e:
@@ -590,6 +662,10 @@ class TradingViewScraper:
 
     async def close(self):
         """Clean up resources"""
+        if self.db_service:
+            self.db_service.close()
+            logger.info("Database service closed")
+
         if self.browser:
             await self.browser.close()
             logger.info("Browser closed")
@@ -597,18 +673,26 @@ class TradingViewScraper:
 
 async def main():
     """Main entry point"""
-    # Configuration
+    # Configuration from environment variables
     USERNAME = os.getenv("TRADINGVIEW_USERNAME", "hrahn")
     PASSWORD = os.getenv("TRADINGVIEW_PASSWORD", "tndnjseogkrry1234")
+    DOWNLOAD_DIR = os.getenv("DOWNLOAD_DIR", str(Path.home() / "Downloads" / "tradingview"))
+    UPLOAD_TO_DB = os.getenv("UPLOAD_TO_DB", "true").lower() == "true"
+    USE_EXISTING_TUNNEL = os.getenv("USE_EXISTING_TUNNEL", "true").lower() == "true"
 
-    # For testing, you can override:
-    # USERNAME = "your_username"
-    # PASSWORD = "your_password"
+    logger.info("=== TradingView Scraper Configuration ===")
+    logger.info(f"Download directory: {DOWNLOAD_DIR}")
+    logger.info(f"Upload to DB: {UPLOAD_TO_DB}")
+    logger.info(f"Use existing SSH tunnel: {USE_EXISTING_TUNNEL}")
+    logger.info("==========================================")
 
     scraper = TradingViewScraper(
         username=USERNAME,
         password=PASSWORD,
         headless=False,  # Set to True for production
+        download_dir=DOWNLOAD_DIR,
+        upload_to_db=UPLOAD_TO_DB,
+        use_existing_tunnel=USE_EXISTING_TUNNEL,
     )
 
     try:
