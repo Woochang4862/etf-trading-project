@@ -56,8 +56,85 @@ AI 기반 미래 수익률 예측으로 패시브 ETF를 능가하는 Active ETF
 
 이 프로젝트의 기술 구현:
 - **ML 서비스**: `ml-service/` - FastAPI 기반 예측 API
-- **웹 대시보드**: `web-dashboard/` - Next.js 포트폴리오 시각화
+- **스크래핑**: `data-scraping/` - 1일,1주,1달,12달 주가 데이터 수집
+- **웹 상품소개/대시보드**: `web-dashboard/` - Next.js 상품소개 및 포트폴리오 시각화
 - **모델 실험**: `etf-model/` - 예측 모델 학습/평가
+- **자동화 모니터링**: `auto-monitoring/` - Next.js 자동화 진행여부 모니터링
+
+설정될 작업:
+1. **매일 오전 8시**: 데이터 크롤링
+2. **매월 1일 새벽 3시**: 모델 학습
+3. **스크래핑이 끝난 직후 ~ 장이 시작하기 전까지**: 다음날 매매/매도 종목 예측
+
+```mermaid
+graph TD
+    %% 스타일 정의
+    classDef docker fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#01579b;
+    classDef host fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,color:#4a148c;
+    classDef db fill:#fff9c4,stroke:#fbc02d,stroke-width:2px,color:#f9a825;
+    classDef user fill:#212121,stroke:#000,stroke-width:2px,color:#fff;
+    classDef script fill:#ffebee,stroke:#c62828,stroke-width:2px,color:#c62828;
+
+    %% 1. 외부 사용자
+    USER(("External User")):::user
+
+    %% 2. 원격 서버 (Production)
+    subgraph "Production Server (ahnbi2.suwon.ac.kr)"
+
+        %% 자동화
+        subgraph "Automation"
+            CRON["Cron Daemon"]:::host
+            SCRIPTS["start.sh
+predict-daily.sh"]:::script
+        end
+
+        %% Docker Compose 환경
+        subgraph "Docker Compose Environment"
+
+            subgraph "Container: web-dashboard"
+                NEXT["Next.js Dashboard
+(Port 3000)"]:::docker
+            end
+
+            subgraph "Container: etf-ml-service"
+                FASTAPI["FastAPI ML Service
+(Port 8000)"]:::docker
+                SQLITE[("SQLite
+predictions.db")]:::db
+            end
+        end
+
+        %% 호스트의 MySQL
+        MYSQL[("MySQL Database
+etf2_db (Port 5100)
+~500 tables")]:::db
+
+    end
+
+    %% --- 연결 흐름 ---
+
+    %% 외부 접근
+    USER --> |"https://ahnbi2.suwon.ac.kr
+(Nginx Reverse Proxy)"| NEXT
+    USER --> |"API 직접 접근 (Optional)"| FASTAPI
+
+    %% 자동화 실행
+    CRON -.-> |"Schedule"| SCRIPTS
+    SCRIPTS -.-> |"docker exec / curl"| FASTAPI
+
+    %% 프론트 → 백엔드
+    NEXT --> |"Internal Docker Network
+http://ml-service:8000"| FASTAPI
+
+    %% 백엔드 → DB
+    FASTAPI <--> |"Save"| SQLITE
+    FASTAPI <--> |"host.docker.internal:5100
+(No SSH Tunnel Needed!)"| MYSQL
+
+    %% 링크 스타일
+    linkStyle 4 stroke:#01579b,stroke-width:2px;
+    linkStyle 6 stroke:#fbc02d,stroke-width:2px;
+```
 
 ## 주요 용어
 
