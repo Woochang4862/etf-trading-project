@@ -136,6 +136,45 @@ http://ml-service:8000"| FASTAPI
     linkStyle 6 stroke:#fbc02d,stroke-width:2px;
 ```
 
+## 투자 유니버스 (101개 종목)
+
+S&P 500 상위 시가총액 종목 기반, 섹터별 분산 투자 유니버스.
+
+### 섹터별 분류
+
+| 섹터 | 종목 수 | 종목 리스트 |
+|------|--------|-------------|
+| **Technology** | 30 | AAPL, MSFT, NVDA, GOOGL, GOOG, META, AVGO, ADBE, CRM, CSCO, ORCL, AMD, INTC, QCOM, TXN, NOW, INTU, AMAT, ADI, LRCX, KLAC, MU, PANW, CRWD, ANET, PLTR, APP, IBM, HOOD, IBKR |
+| **Communication** | 4 | AMZN, TSLA, NFLX, T |
+| **Consumer** | 9 | WMT, HD, COST, MCD, LOW, TJX, BKNG, PEP, KO |
+| **Financials** | 15 | BRK.B, JPM, V, MA, BAC, WFC, GS, MS, BLK, SCHW, AXP, C, SPGI, COF, BX |
+| **Healthcare** | 14 | UNH, JNJ, LLY, ABBV, MRK, PFE, TMO, ABT, DHR, AMGN, ISRG, GILD, BSX, SYK |
+| **Industrials** | 12 | CAT, GE, HON, UNP, BA, RTX, LMT, DE, ETN, PLD, MDT, MMM |
+| **Energy** | 3 | XOM, CVX, COP |
+| **Consumer Staples** | 3 | PG, PM, LIN |
+| **Utilities & Others** | 11 | NEE, CEG, DIS, VZ, TMUS, UBER, GEV, PGR, WELL, APH, ACN |
+
+### 데이터베이스 테이블 구조
+
+각 종목별로 6개의 시간프레임 테이블 존재 (총 606개 테이블):
+
+| 테이블 접미사 | 시간프레임 | 용도 |
+|--------------|-----------|------|
+| `{SYMBOL}_D` | Daily | 일봉 데이터 (12개월) |
+| `{SYMBOL}_W` | Weekly | 주봉 데이터 |
+| `{SYMBOL}_M` | Monthly | 월봉 데이터 |
+| `{SYMBOL}_1h` | 1 Hour | 1시간봉 (1일 데이터) |
+| `{SYMBOL}_10m` | 10 Min | 10분봉 |
+| `{SYMBOL}_12M` | 12 Month | 12개월 범위 데이터 |
+
+**예시**: NVDA 종목 → `NVDA_D`, `NVDA_W`, `NVDA_M`, `NVDA_1h`, `NVDA_10m`, `NVDA_12M`
+
+### 데이터 수집 주기
+
+- **Daily 데이터**: 매일 장 마감 후 자동 스크래핑 (cron)
+- **Intraday 데이터**: 1시간/10분봉 - 실시간 트레이딩용
+- **Long-term 데이터**: 주봉/월봉 - 장기 트렌드 분석용
+
 ## 주요 용어
 
 | 용어 | 설명 |
@@ -145,3 +184,4 @@ http://ml-service:8000"| FASTAPI
 | 코호트 | 같은 날 편입된 종목 그룹 |
 | 상관계수 0.7 | 국내 액티브 ETF 규제 기준 |
 | 알파 | 벤치마크 대비 초과 수익 |
+| 투자 유니버스 | AI 예측 및 포트폴리오 구성 대상 종목 집합 (101개) |

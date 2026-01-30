@@ -64,38 +64,34 @@ TIME_PERIODS = [
     {"name": "1일", "button_text": "1D", "interval": "1 분"},
 ]
 
-# 종목 리스트 (baseline.ipynb에서 가져옴)
+# 종목 리스트 (etf2_db 테이블 기준 - 101개 종목)
+# S&P 500 상위 시가총액 종목 + 주요 기술/금융/헬스케어 종목
 STOCK_LIST = [
-    "NVDA",
-    "AAPL",
-    "MSFT",
-    "GOOGL",
-    "AMZN",
-    "META",
-    "TSLA",
-    "BRK.B",
-    "UNH",
-    "JNJ",
-    "V",
-    "XOM",
-    "WMT",
-    "JPM",
-    "MA",
-    "PG",
-    "CVX",
-    "HD",
-    "LLY",
-    "ABBV",
-    "MRK",
-    "AVGO",
-    "PEP",
-    "KO",
-    "COST",
-    "ADBE",
-    "TMO",
-    "MCD",
-    "CSCO",
-    "CRM",
+    # Technology (30개)
+    "AAPL", "MSFT", "NVDA", "GOOGL", "GOOG", "META", "AVGO", "ADBE",
+    "CRM", "CSCO", "ORCL", "AMD", "INTC", "QCOM", "TXN", "NOW",
+    "INTU", "AMAT", "ADI", "LRCX", "KLAC", "MU", "PANW", "CRWD",
+    "ANET", "PLTR", "APP", "IBM", "HOOD", "IBKR",
+    # Communication Services (4개)
+    "AMZN", "TSLA", "NFLX", "T",
+    # Consumer (9개)
+    "WMT", "HD", "COST", "MCD", "LOW", "TJX", "BKNG", "PEP", "KO",
+    # Financials (15개)
+    "BRK.B", "JPM", "V", "MA", "BAC", "WFC", "GS", "MS", "BLK",
+    "SCHW", "AXP", "C", "SPGI", "COF", "BX",
+    # Healthcare (14개)
+    "UNH", "JNJ", "LLY", "ABBV", "MRK", "PFE", "TMO", "ABT",
+    "DHR", "AMGN", "ISRG", "GILD", "BSX", "SYK",
+    # Industrials (12개)
+    "CAT", "GE", "HON", "UNP", "BA", "RTX", "LMT", "DE",
+    "ETN", "PLD", "MDT", "MMM",
+    # Energy (3개)
+    "XOM", "CVX", "COP",
+    # Consumer Staples (3개)
+    "PG", "PM", "LIN",
+    # Utilities & Others (11개)
+    "NEE", "CEG", "DIS", "VZ", "TMUS", "UBER", "GEV", "PGR",
+    "WELL", "APH", "ACN",
 ]
 
 DOWNLOAD_DIR = Path("./downloads")

@@ -52,6 +52,7 @@ TRADINGVIEW_USERNAME=your_username
 TRADINGVIEW_PASSWORD=your_password
 UPLOAD_TO_DB=true
 USE_EXISTING_TUNNEL=true
+HEADLESS=true                     # 기본값: true (쿠키 없으면 자동으로 false 전환)
 ```
 
 ### 2. SSH 터널 (DB 업로드 시 필수)
@@ -67,7 +68,50 @@ pgrep -f "ssh.*3306"
 ### 3. 스크래퍼 실행
 
 ```bash
-poetry run python tradingview_playwright_scraper_upload.py
+# 기본 실행 (HEADLESS=true 권장)
+HEADLESS=true poetry run python tradingview_playwright_scraper_upload.py
+
+# Linux 서버 환경 (디스플레이 없는 환경)
+xvfb-run --auto-servernum --server-args='-screen 0 1280x960x24' poetry run python tradingview_playwright_scraper_upload.py
+```
+
+### Headless 모드 관리
+
+**기본 설정: HEADLESS=true**
+
+| 상황 | HEADLESS 값 | 설명 |
+|------|-------------|------|
+| 일반 실행 (cron 자동화) | `true` | 브라우저 창 없이 백그라운드 실행 |
+| 로그인 필요 (쿠키 없음/만료) | `false` | CAPTCHA 수동 해결을 위해 브라우저 표시 |
+| 디버깅/UI 확인 | `false` | 브라우저 동작 시각적 확인 |
+
+**자동 전환 로직 (코드에 내장됨):**
+1. `HEADLESS=true` 설정 시, 쿠키가 없거나 만료되면 자동으로 `false`로 전환
+2. 로그인 성공 후 쿠키가 저장되면 다음 실행부터 `true` 모드 사용 가능
+3. 쿠키가 유효하면 자동으로 `true` 모드로 실행
+
+**Linux 서버 필수 설정:**
+```bash
+# xvfb 설치 (Ubuntu/Debian)
+sudo apt-get install xvfb
+
+# xvfb-run으로 실행 (디스플레이 없는 서버에서 필수)
+xvfb-run --auto-servernum --server-args='-screen 0 1280x960x24' \
+  HEADLESS=true poetry run python tradingview_playwright_scraper_upload.py
+```
+
+**로그인 워크플로우:**
+```bash
+# Step 1: 로그인이 필요하면 HEADLESS=false로 실행 (CAPTCHA 수동 해결)
+HEADLESS=false poetry run python tradingview_playwright_scraper_upload.py
+
+# Step 2: 로그인 성공 후 cookies.json 생성됨
+
+# Step 3: 이후부터는 HEADLESS=true로 자동화 실행
+HEADLESS=true poetry run python tradingview_playwright_scraper_upload.py
+# 또는 Linux 서버:
+xvfb-run --auto-servernum --server-args='-screen 0 1280x960x24' \
+  HEADLESS=true poetry run python tradingview_playwright_scraper_upload.py
 ```
 
 ## 주요 설정
@@ -120,7 +164,7 @@ CREATE TABLE `{symbol}_{timeframe}` (
 
 ### 로그인 실패
 - `cookies.json` 삭제 후 재실행
-- CAPTCHA 발생 시 수동 해결 필요 (headless=False로 실행)
+- CAPTCHA 발생 시 수동 해결 필요 (`HEADLESS=false`로 실행)
 
 ### DB 연결 실패
 - SSH 터널 확인: `pgrep -f "ssh.*3306"`
@@ -128,7 +172,24 @@ CREATE TABLE `{symbol}_{timeframe}` (
 
 ### 요소 찾기 실패
 - TradingView UI 변경 가능성
-- `headless=False`로 실행하여 UI 확인
+- `HEADLESS=false`로 실행하여 UI 확인
+
+### Linux 디스플레이 에러
+**증상:** `Cannot open display` 또는 `no display environment variable` 에러
+
+**해결:**
+```bash
+# xvfb 설치
+sudo apt-get install xvfb
+
+# xvfb-run으로 실행
+xvfb-run --auto-servernum --server-args='-screen 0 1280x960x24' \
+  poetry run python tradingview_playwright_scraper_upload.py
+```
+
+**xvfb-run 옵션 설명:**
+- `--auto-servernum`: 사용 가능한 서버 번호 자동 선택
+- `--server-args='-screen 0 1280x960x24'`: 가상 화면 해상도 설정 (1280x960, 24bit 색상)
 
 ## 자동화 파이프라인
 
@@ -158,6 +219,15 @@ scripts/
 ```bash
 export HEADLESS=true              # Headless 모드 활성화
 export PATH="/usr/local/bin:..."  # cron 환경용 PATH
+```
+
+**Linux 서버 실행 (xvfb 필수):**
+```bash
+# 수동 실행
+xvfb-run --auto-servernum --server-args='-screen 0 1280x960x24' \
+  HEADLESS=true poetry run python tradingview_playwright_scraper_upload.py
+
+# cron에서 실행 시 스크립트 내부에 xvfb-run 포함
 ```
 
 **로그 출력:**
@@ -374,8 +444,18 @@ ssh -f -N -L 3306:127.0.0.1:5100 ahnbi2@ahnbi2.suwon.ac.kr
 **스크래핑 실패 시:**
 1. SSH 터널 확인: `pgrep -f "ssh.*3306"`
 2. 로그 확인: `tail -100 logs/scraper-$(date +%Y%m%d).log`
-3. Headless 모드 해제: `HEADLESS=false ./scripts/scrape-daily.sh`
-4. 수동 실행으로 디버깅: `cd data-scraping && poetry run python tradingview_playwright_scraper_upload.py`
+3. Headless 모드 해제 (Linux):
+   ```bash
+   xvfb-run --auto-servernum --server-args='-screen 0 1280x960x24' \
+     HEADLESS=false poetry run python tradingview_playwright_scraper_upload.py
+   ```
+4. 수동 실행으로 디버깅:
+   ```bash
+   cd data-scraping && \
+   xvfb-run --auto-servernum --server-args='-screen 0 1280x960x24' \
+     poetry run python tradingview_playwright_scraper_upload.py
+   ```
+5. 쿠키 재로그인 필요 시: `rm cookies.json` 후 `HEADLESS=false`로 실행
 
 **데이터 검증 실패 시:**
 1. 검증 결과 확인: `cat logs/validation_*.json | jq '.failed_tables'`
