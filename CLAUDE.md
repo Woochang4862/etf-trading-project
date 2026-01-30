@@ -4,16 +4,74 @@
 ETF 주식 데이터 분석 및 예측을 위한 데이터 파이프라인 시스템. FastAPI 기반 ML 서비스가 Docker에서 실행되며, SSH 터널을 통해 원격 MySQL 데이터베이스에 접근합니다. Next.js 기반 웹 대시보드로 예측 결과와 포트폴리오를 시각화합니다.
 
 ## Architecture
-```
-[Cron Jobs] → [Shell Scripts] → [Docker Container]
-                                       ↓
-                              [FastAPI ML Service]
-                                    ↓      ↓
-                    [SSH Tunnel → Remote MySQL]  [Local SQLite]
-                         (etf2_db - 주가 데이터)    (예측 결과 저장)
-                                    ↓
-                         [Next.js Web Dashboard]
-                              (localhost:3000)
+```mermaid
+graph TD
+    %% 스타일 정의
+    classDef docker fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#01579b;
+    classDef host fill:#f3e5f5,stroke:#4a148c,stroke-width:2px,color:#4a148c;
+    classDef db fill:#fff9c4,stroke:#fbc02d,stroke-width:2px,color:#f9a825;
+    classDef user fill:#212121,stroke:#000,stroke-width:2px,color:#fff;
+    classDef script fill:#ffebee,stroke:#c62828,stroke-width:2px,color:#c62828;
+
+    %% 1. 외부 사용자
+    USER(("External User")):::user
+
+    %% 2. 원격 서버 (Production)
+    subgraph "Production Server (ahnbi2.suwon.ac.kr)"
+
+        %% 자동화
+        subgraph "Automation"
+            CRON["Cron Daemon"]:::host
+            SCRIPTS["start.sh
+predict-daily.sh"]:::script
+        end
+
+        %% Docker Compose 환경
+        subgraph "Docker Compose Environment"
+
+            subgraph "Container: web-dashboard"
+                NEXT["Next.js Dashboard
+(Port 3000)"]:::docker
+            end
+
+            subgraph "Container: etf-ml-service"
+                FASTAPI["FastAPI ML Service
+(Port 8000)"]:::docker
+                SQLITE[("SQLite
+predictions.db")]:::db
+            end
+        end
+
+        %% 호스트의 MySQL
+        MYSQL[("MySQL Database
+etf2_db (Port 5100)
+~500 tables")]:::db
+
+    end
+
+    %% --- 연결 흐름 ---
+
+    %% 외부 접근
+    USER --> |"https://ahnbi2.suwon.ac.kr
+(Nginx Reverse Proxy)"| NEXT
+    USER --> |"API 직접 접근 (Optional)"| FASTAPI
+
+    %% 자동화 실행
+    CRON -.-> |"Schedule"| SCRIPTS
+    SCRIPTS -.-> |"docker exec / curl"| FASTAPI
+
+    %% 프론트 → 백엔드
+    NEXT --> |"Internal Docker Network
+http://ml-service:8000"| FASTAPI
+
+    %% 백엔드 → DB
+    FASTAPI <--> |"Save"| SQLITE
+    FASTAPI <--> |"host.docker.internal:5100
+(No SSH Tunnel Needed!)"| MYSQL
+
+    %% 링크 스타일
+    linkStyle 4 stroke:#01579b,stroke-width:2px;
+    linkStyle 6 stroke:#fbc02d,stroke-width:2px;
 ```
 
 ## Build & Run Commands
