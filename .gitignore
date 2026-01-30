@@ -23,6 +23,9 @@ data-scraping/cookies.json
 *.png
 .sisyphus/
 .playwright-mcp/
+.omc/
+data-scraping/downloads/
+data-scraping/tradingview_data/
 
 # IDE
 .idea/
