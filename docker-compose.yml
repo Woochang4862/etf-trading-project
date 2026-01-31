@@ -30,10 +30,26 @@ services:
       - "3000"
     environment:
       - NODE_ENV=production
-      # API는 nginx를 통해 같은 도메인으로 접근
       - NEXT_PUBLIC_API_URL=
     depends_on:
       - ml-service
+    restart: unless-stopped
+    networks:
+      - etf-network
+
+  auto-monitoring:
+    build:
+      context: ./auto-monitoring
+      dockerfile: Dockerfile
+    container_name: etf-auto-monitoring
+    expose:
+      - "3000"
+    environment:
+      - NODE_ENV=production
+    volumes:
+      # 스크래핑 로그 파일 읽기 전용 마운트
+      - ./data-scraping/tradingview_scraper_upload.log:/app/logs/scraper.log:ro
+      - ./logs:/app/logs/pipeline:ro
     restart: unless-stopped
     networks:
       - etf-network
@@ -48,6 +64,7 @@ services:
     depends_on:
       - web-dashboard
       - ml-service
+      - auto-monitoring
     restart: unless-stopped
     networks:
       - etf-network
