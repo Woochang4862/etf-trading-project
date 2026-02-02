@@ -94,6 +94,8 @@ STOCK_LIST = [
     "WELL", "APH", "ACN",
 ]
 
+STOCK_LIST = ["BA"]
+
 DOWNLOAD_DIR = Path("./downloads")
 COOKIES_FILE = Path("./cookies.json")
 
@@ -332,22 +334,20 @@ class TradingViewScraper:
 
             # 방법 1: NASDAQ 거래소 주식 결과 클릭 (가장 일반적인 미국 주식)
             try:
+                logger.info("방법 1: 첫번째 아이템 클릭")
                 # "심볼 찾기" 다이얼로그 내에서 NASDAQ + stock 조합 찾기
                 nasdaq_result = (
-                    self.page.get_by_text(f"{symbol}")
-                    .locator(
-                        "xpath=ancestor::*[contains(., 'NASDAQ') and contains(., 'stock')]"
-                    )
-                    .first
+                    self.page.locator('[data-role="list-item"]').first
                 )
                 await nasdaq_result.click(timeout=3000)
                 clicked = True
-            except:
-                pass
+            except Exception as e:
+                logger.warning(f"방법 1 실패: {e}")
 
             # 방법 2: NYSE 거래소 시도
             if not clicked:
                 try:
+                    logger.info("방법 2: NYSE 거래소 시도")
                     nyse_result = (
                         self.page.get_by_text(f"{symbol}")
                         .locator(
@@ -357,23 +357,25 @@ class TradingViewScraper:
                     )
                     await nyse_result.click(timeout=3000)
                     clicked = True
-                except:
-                    pass
+                except Exception as e:
+                    logger.warning(f"방법 2 실패: {e}")
 
             # 방법 3: 첫 번째 검색 결과 (심볼명과 거래소 텍스트를 포함하는 요소)
             if not clicked:
                 try:
+                    logger.info("방법 3: 첫 번째 검색 결과")
                     # dialog 내의 첫 번째 검색 결과 항목
                     first_result = self.page.locator(
                         f'div:has(> div:has-text("{symbol}")):has-text("stock")'
                     ).first
                     await first_result.click(timeout=3000)
                     clicked = True
-                except:
-                    pass
+                except Exception as e:
+                    logger.warning(f"방법 3 실패: {e}")
 
             # 방법 4: Enter 키로 첫 번째 결과 선택
             if not clicked:
+                logger.info("방법 4: Enter 키로 첫 번째 결과 선택")
                 await self.page.keyboard.press("Enter")
                 await asyncio.sleep(0.5)
 
