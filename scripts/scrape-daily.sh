@@ -1,85 +1,119 @@
 #!/bin/bash
-# 매일 TradingView 데이터 스크래핑 실행 스크립트
+# 매일 TradingView 데이터 스크래핑 실행 스크립트 (API 호출 방식)
 # 미국 정규장 마감 후 실행 (5 PM ET = 22:00 UTC, 월~금)
 # cron: 0 22 * * 1-5 /home/ahnbi2/etf-trading-project/scripts/scrape-daily.sh
 
+set -e
+
 # PATH 설정 (cron 환경용)
 export PATH="/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin:$PATH"
-export PATH="/Applications/Docker.app/Contents/Resources/bin:$PATH"
 
+API_BASE="http://localhost/api/scraper"
 LOG_DIR="/home/ahnbi2/etf-trading-project/logs"
-LOG_FILE="$LOG_DIR/scraper-$(date +%Y%m%d).log"
-PROJECT_DIR="/home/ahnbi2/etf-trading-project"
-SCRAPER_DIR="$PROJECT_DIR/data-scraping"
-
-# Headless 모드 활성화
-export HEADLESS=true
+LOG_FILE="$LOG_DIR/cron-scraper-$(date +%Y%m%d).log"
+POLL_INTERVAL=60  # seconds
+MAX_WAIT_HOURS=4  # Maximum wait time
 
 mkdir -p "$LOG_DIR"
 
-echo "========================================" >> "$LOG_FILE"
-echo "📊 일일 스크래핑 시작: $(date)" >> "$LOG_FILE"
-echo "========================================" >> "$LOG_FILE"
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
+}
+
+log "========================================"
+log "📊 일일 스크래핑 시작"
+log "========================================"
 
 # 1. SSH 터널 확인 및 시작
 if ! pgrep -f "ssh.*3306:127.0.0.1:5100" > /dev/null; then
-    echo "📡 SSH 터널 시작..." >> "$LOG_FILE"
+    log "📡 SSH 터널 시작..."
     ssh -f -N -L 3306:127.0.0.1:5100 ahnbi2@ahnbi2.suwon.ac.kr \
         -o ServerAliveInterval=60 \
         -o ServerAliveCountMax=3 2>> "$LOG_FILE"
 
     if [ $? -ne 0 ]; then
-        echo "❌ SSH 터널 시작 실패" >> "$LOG_FILE"
+        log "❌ SSH 터널 시작 실패"
         exit 1
     fi
-
     sleep 3
-    echo "✅ SSH 터널 시작 완료" >> "$LOG_FILE"
+    log "✅ SSH 터널 시작 완료"
 else
-    echo "✅ SSH 터널 이미 실행 중" >> "$LOG_FILE"
+    log "✅ SSH 터널 이미 실행 중"
 fi
 
-# 2. Poetry 환경 확인
-cd "$SCRAPER_DIR"
+# 2. Check if job already running
+HEALTH=$(curl -s "$API_BASE/health" 2>/dev/null || echo '{"error": "connection failed"}')
+if echo "$HEALTH" | grep -q "error"; then
+    log "❌ Scraper service not available: $HEALTH"
+    exit 1
+fi
 
-if [ ! -d ".venv" ]; then
-    echo "⚙️  Poetry 환경 설정 중..." >> "$LOG_FILE"
-    poetry install >> "$LOG_FILE" 2>&1
+CURRENT_JOB=$(echo "$HEALTH" | jq -r '.current_job // empty')
+if [ -n "$CURRENT_JOB" ] && [ "$CURRENT_JOB" != "null" ]; then
+    log "⚠️ Job already running: $CURRENT_JOB"
+    log "Waiting for completion..."
+else
+    # 3. Start full scraping job
+    log "🚀 Starting full scraping job..."
+    RESPONSE=$(curl -s -X POST "$API_BASE/jobs/full" -H "Content-Type: application/json")
+    JOB_ID=$(echo "$RESPONSE" | jq -r '.job_id')
 
-    if [ $? -ne 0 ]; then
-        echo "❌ Poetry 환경 설정 실패" >> "$LOG_FILE"
+    if [ -z "$JOB_ID" ] || [ "$JOB_ID" == "null" ]; then
+        log "❌ Failed to start job: $RESPONSE"
         exit 1
     fi
+
+    log "✅ Job started: $JOB_ID"
 fi
 
-# 3. TradingView 스크래퍼 실행
-echo "🚀 스크래퍼 실행 중..." >> "$LOG_FILE"
-echo "Headless 모드: $HEADLESS" >> "$LOG_FILE"
-
+# 4. Poll for completion
 START_TIME=$(date +%s)
+MAX_WAIT=$((MAX_WAIT_HOURS * 3600))
 
-poetry run python tradingview_playwright_scraper_upload.py >> "$LOG_FILE" 2>&1
-EXIT_CODE=$?
+while true; do
+    CURRENT_TIME=$(date +%s)
+    ELAPSED=$((CURRENT_TIME - START_TIME))
 
-END_TIME=$(date +%s)
-DURATION=$((END_TIME - START_TIME))
+    if [ $ELAPSED -gt $MAX_WAIT ]; then
+        log "❌ Timeout: Job exceeded ${MAX_WAIT_HOURS} hours"
+        exit 1
+    fi
 
-# 4. 결과 확인
-if [ $EXIT_CODE -eq 0 ]; then
-    echo "✅ 스크래핑 성공 (소요시간: ${DURATION}초)" >> "$LOG_FILE"
-    echo "완료 시간: $(date)" >> "$LOG_FILE"
-else
-    echo "❌ 스크래핑 실패 (Exit Code: $EXIT_CODE)" >> "$LOG_FILE"
-    echo "에러 발생 시간: $(date)" >> "$LOG_FILE"
-fi
+    STATUS_RESPONSE=$(curl -s "$API_BASE/jobs/status" 2>/dev/null || echo '{"status": "error"}')
+    STATUS=$(echo "$STATUS_RESPONSE" | jq -r '.status // "unknown"')
+    PROGRESS=$(echo "$STATUS_RESPONSE" | jq -r '.progress.current // 0')
+    TOTAL=$(echo "$STATUS_RESPONSE" | jq -r '.progress.total // 0')
+    CURRENT_SYMBOL=$(echo "$STATUS_RESPONSE" | jq -r '.progress.current_symbol // "N/A"')
 
-echo "" >> "$LOG_FILE"
+    log "Status: $STATUS | Progress: $PROGRESS/$TOTAL | Current: $CURRENT_SYMBOL"
 
-# 5. 요약 출력 (stdout)
-if [ $EXIT_CODE -eq 0 ]; then
-    echo "✅ 일일 스크래핑 완료 (${DURATION}초)"
-else
-    echo "❌ 스크래핑 실패 - 로그 확인: $LOG_FILE"
-fi
-
-exit $EXIT_CODE
+    case "$STATUS" in
+        "completed")
+            log "✅ 스크래핑 성공!"
+            SUMMARY=$(echo "$STATUS_RESPONSE" | jq -c '.progress // {}')
+            log "Summary: $SUMMARY"
+            exit 0
+            ;;
+        "failed")
+            log "❌ 스크래핑 실패!"
+            ERRORS=$(echo "$STATUS_RESPONSE" | jq -r '.progress.errors[]' 2>/dev/null || echo "Unknown error")
+            log "Errors: $ERRORS"
+            exit 1
+            ;;
+        "cancelled")
+            log "⚠️ Job was cancelled"
+            exit 1
+            ;;
+        "idle"|"null"|"")
+            log "✅ No job running (completed or idle)"
+            exit 0
+            ;;
+        "running"|"pending")
+            sleep "$POLL_INTERVAL"
+            ;;
+        *)
+            log "⚠️ Unknown status: $STATUS - continuing to poll"
+            sleep "$POLL_INTERVAL"
+            ;;
+    esac
+done
