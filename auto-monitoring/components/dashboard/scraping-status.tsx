@@ -155,7 +155,7 @@ function SessionBadge({ icon, label, active }: { icon: string; label: string; ac
     <div
       className={`px-2 py-1 rounded border text-xs ${
         active
-          ? 'bg-green-500/10 border-green-500/20 text-green-700 dark:text-green-300'
+          ? 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300'
           : 'bg-muted/50 border-muted text-muted-foreground'
       }`}
     >

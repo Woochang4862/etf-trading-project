@@ -42,7 +42,7 @@ export function PredictionStatus({ data }: PredictionStatusProps) {
               {lastPrediction ? new Date(lastPrediction).toLocaleDateString() : 'Never'}
             </div>
           </div>
-          <div className="p-3 rounded-lg bg-violet-500/10 border border-violet-200 dark:border-violet-800">
+          <div className="p-3 rounded-lg bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800">
             <div className="text-xs font-medium text-muted-foreground mb-1">
               Next Scheduled
             </div>
@@ -106,9 +106,9 @@ function SignalSummary({
 
 function SignalRow({ signal }: { signal: PredictionStatusType['topSignals'][0] }) {
   const signalColors = {
-    BUY: 'bg-green-500/10 border-green-200 dark:border-green-800',
-    HOLD: 'bg-blue-500/10 border-blue-200 dark:border-blue-800',
-    SELL: 'bg-red-500/10 border-red-200 dark:border-red-800',
+    BUY: 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800',
+    HOLD: 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800',
+    SELL: 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800',
   };
 
   const signalBadgeColors = {

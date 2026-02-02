@@ -42,7 +42,7 @@ export function TrainingStatus({ data }: TrainingStatusProps) {
               {lastTraining ? new Date(lastTraining).toLocaleDateString() : 'Never'}
             </div>
           </div>
-          <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-200 dark:border-amber-800">
+          <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
             <div className="text-xs font-medium text-muted-foreground mb-1">
               Next Scheduled
             </div>
@@ -71,9 +71,9 @@ export function TrainingStatus({ data }: TrainingStatusProps) {
 function ModelCard({ model }: { model: TrainingStatusType['models'][0] }) {
   const statusColors = {
     pending: 'bg-muted/50 border text-muted-foreground',
-    training: 'bg-amber-500/10 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400',
-    trained: 'bg-green-500/10 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400',
-    failed: 'bg-red-500/10 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400',
+    training: 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400',
+    trained: 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400',
+    failed: 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400',
   };
 
   return (
