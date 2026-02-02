@@ -13,23 +13,19 @@ export function TrainingStatus({ data }: TrainingStatusProps) {
   const isTraining = status === 'training';
 
   return (
-    <Card className="border-l-4 border-l-amber-500">
+    <Card>
       <CardHeader>
         <div className="flex items-start justify-between">
           <div className="space-y-1">
-            <CardTitle className="flex items-center gap-2 text-xl">
+            <CardTitle className="flex items-center gap-2 text-lg">
               Model Training
               {isTraining && (
-                <div className="flex gap-0.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" style={{ animationDelay: '0ms' }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" style={{ animationDelay: '150ms' }} />
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" style={{ animationDelay: '300ms' }} />
-                </div>
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
               )}
             </CardTitle>
-            <CardDescription>Monthly model retraining pipeline</CardDescription>
+            <CardDescription className="text-sm">Monthly model retraining pipeline</CardDescription>
           </div>
-          <Badge variant={getTrainingStatusVariant(status)} className="uppercase text-xs font-bold">
+          <Badge variant={getTrainingStatusVariant(status)} className="uppercase text-xs">
             {status}
           </Badge>
         </div>
@@ -38,16 +34,16 @@ export function TrainingStatus({ data }: TrainingStatusProps) {
       <CardContent className="space-y-4">
         {/* Schedule Info */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="p-3 rounded-lg bg-muted/30 border border-foreground/5">
-            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+          <div className="p-3 rounded-lg bg-muted/50 border">
+            <div className="text-xs font-medium text-muted-foreground mb-1">
               Last Training
             </div>
             <div className="text-sm font-medium">
               {lastTraining ? new Date(lastTraining).toLocaleDateString() : 'Never'}
             </div>
           </div>
-          <div className="p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
-            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+          <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-200 dark:border-amber-800">
+            <div className="text-xs font-medium text-muted-foreground mb-1">
               Next Scheduled
             </div>
             <div className="text-sm font-medium text-amber-700 dark:text-amber-400">
@@ -58,7 +54,7 @@ export function TrainingStatus({ data }: TrainingStatusProps) {
 
         {/* Models Grid */}
         <div className="space-y-2">
-          <h4 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+          <h4 className="text-xs font-medium text-muted-foreground uppercase">
             Active Models ({models.length})
           </h4>
           <div className="grid gap-2">
@@ -74,20 +70,20 @@ export function TrainingStatus({ data }: TrainingStatusProps) {
 
 function ModelCard({ model }: { model: TrainingStatusType['models'][0] }) {
   const statusColors = {
-    pending: 'bg-gray-500/10 border-gray-500/20 text-gray-600 dark:text-gray-400',
-    training: 'bg-amber-500/10 border-amber-500/20 text-amber-600 dark:text-amber-400',
-    trained: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400',
-    failed: 'bg-red-500/10 border-red-500/20 text-red-600 dark:text-red-400',
+    pending: 'bg-muted/50 border text-muted-foreground',
+    training: 'bg-amber-500/10 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400',
+    trained: 'bg-green-500/10 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400',
+    failed: 'bg-red-500/10 border-red-200 dark:border-red-800 text-red-700 dark:text-red-400',
   };
 
   return (
-    <div className={`p-3 rounded-lg border transition-all hover:shadow-md ${statusColors[model.status]}`}>
+    <div className={`p-3 rounded-lg border ${statusColors[model.status]}`}>
       <div className="flex items-start justify-between mb-2">
         <div>
-          <div className="font-bold text-sm">{model.name}</div>
+          <div className="font-medium text-sm">{model.name}</div>
           <div className="text-xs text-muted-foreground">{model.symbols} symbols</div>
         </div>
-        <Badge variant="outline" className="text-[10px] px-2 uppercase font-bold">
+        <Badge variant="outline" className="text-[10px] px-2 uppercase">
           {model.status}
         </Badge>
       </div>
@@ -96,7 +92,7 @@ function ModelCard({ model }: { model: TrainingStatusType['models'][0] }) {
           Updated: {new Date(model.lastUpdated).toLocaleDateString()}
         </div>
         {model.status === 'trained' && (
-          <div className="text-xs font-bold">
+          <div className="text-xs font-semibold">
             {(model.accuracy * 100).toFixed(1)}% acc
           </div>
         )}

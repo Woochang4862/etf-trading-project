@@ -17,13 +17,10 @@ export default function DashboardPage() {
 
   if (scrapingLoading || trainingLoading || predictionLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-muted/20 to-background">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4">
-          <div className="relative w-16 h-16 mx-auto">
-            <div className="absolute inset-0 border-4 border-foreground/10 rounded-full" />
-            <div className="absolute inset-0 border-4 border-foreground border-t-transparent rounded-full animate-spin" />
-          </div>
-          <p className="text-sm font-medium text-muted-foreground">Loading dashboard...</p>
+          <div className="w-8 h-8 mx-auto border-2 border-foreground/20 border-t-foreground rounded-full animate-spin" />
+          <p className="text-sm text-muted-foreground">Loading dashboard...</p>
         </div>
       </div>
     );
@@ -31,11 +28,11 @@ export default function DashboardPage() {
 
   if (scrapingError) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-muted/20 to-background">
-        <div className="text-center space-y-4 p-8 rounded-xl border-2 border-red-500/20 bg-red-500/5">
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-4 max-w-md p-8 rounded-lg border bg-card">
           <div className="text-4xl">⚠️</div>
-          <h2 className="text-xl font-bold">Error Loading Dashboard</h2>
-          <p className="text-sm text-muted-foreground max-w-md">
+          <h2 className="text-xl font-semibold">Error Loading Dashboard</h2>
+          <p className="text-sm text-muted-foreground">
             {scrapingError instanceof Error ? scrapingError.message : 'Failed to load dashboard data'}
           </p>
         </div>
@@ -48,8 +45,8 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-muted/10 to-background">
-      <div className="container mx-auto px-4 py-8 space-y-8">
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-8 space-y-6">
         {/* Header */}
         <DashboardHeader
           title="ETF Trading Pipeline Monitor"
@@ -64,17 +61,17 @@ export default function DashboardPage() {
         />
 
         {/* Main Grid - Scraping, Training, Predictions */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <ScrapingStatus data={scrapingData} />
           <TrainingStatus data={trainingData} />
           <PredictionStatus data={predictionData} />
         </div>
 
         {/* Symbol Grid */}
-        <SymbolGrid symbols={scrapingData.symbols} />
+        <SymbolGrid symbols={scrapingData.symbols} totalDuration={scrapingData.totalDuration} />
 
         {/* Footer */}
-        <footer className="text-center text-xs text-muted-foreground py-8 border-t border-foreground/5">
+        <footer className="text-center text-xs text-muted-foreground py-8 border-t">
           <p>ETF Trading Pipeline • Auto-refresh every 5 seconds</p>
           <p className="mt-1">Monitoring 101 stocks across 4 timeframes</p>
         </footer>
