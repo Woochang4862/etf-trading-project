@@ -1,0 +1,47 @@
+# Research/Development Dockerfile for ml-service (full ML stack)
+# This image includes all ML dependencies for training and experimentation
+FROM python:3.12
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Poetry for dependency management
+RUN pip install --no-cache-dir poetry
+RUN poetry config virtualenvs.create false
+
+# Copy dependency files
+COPY pyproject.toml poetry.lock* ./
+
+# Install Python dependencies (main + research groups)
+RUN poetry install --with research --no-interaction --no-ansi --no-root
+
+# Copy application code
+COPY app/ ./app/
+COPY ml/ ./ml/
+COPY experiments/ ./experiments/
+
+# Create data directories
+RUN mkdir -p /app/data/models \
+    /app/data/cache \
+    /app/logs \
+    /app/submissions
+
+# Set Python path
+ENV PYTHONPATH=/app:$PYTHONPATH
+
+# Expose port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Run application
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

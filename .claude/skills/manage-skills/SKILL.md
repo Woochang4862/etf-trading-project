@@ -30,7 +30,8 @@ argument-hint: "[선택사항: 특정 스킬 이름 또는 집중할 영역]"
 
 | 스킬 | 설명 | 커버 파일 패턴 |
 |------|------|---------------|
-<!-- 아직 등록된 검증 스킬이 없습니다. /manage-skills를 실행하여 프로젝트에 맞는 검증 스킬을 생성하세요. -->
+| verify-ml-service | AhnLab 모델 로딩, 랭킹 API, processed DB 연결, 스키마/모델 일관성 검증 | `ml-service/app/**/*.py`, `ml-service/scripts/**/*.py`, `ml-service/pyproject.toml`, `ml-service/poetry.lock`, `ml-service/Dockerfile.*` |
+| verify-scraper-service | DB 서비스, 피처 파이프라인, API 엔드포인트, 스크래퍼 구조 검증 | `scraper-service/app/**/*.py`, `scraper-service/Dockerfile`, `scraper-service/pyproject.toml` |
 
 ## 워크플로우
 
