@@ -2,7 +2,7 @@
 
 ## 1. 프로젝트 개요
 
-**레포지토리**: https://github.com/2025-ahnlab/etf-trading-project
+**레포지토리**: https://github.com/Ahn-Laboratory/etf-trading-project
 
 ### 1.1 프로젝트 목적
 ETF 주식 데이터 수집, 분석, 예측을 위한 종합 데이터 파이프라인 시스템입니다. 머신러닝 모델을 활용한 주식 랭킹 예측과 자동화된 데이터 파이프라인을 제공합니다.

@@ -37,7 +37,7 @@ ETF 주식 데이터 수집, 분석, 예측을 위한 종합 데이터 파이프
 ### 1. 레포지토리 클론
 
 ```bash
-git clone https://github.com/2025-ahnlab/etf-trading-project.git
+git clone https://github.com/Ahn-Laboratory/etf-trading-project.git
 cd etf-trading-project
 ```
 
