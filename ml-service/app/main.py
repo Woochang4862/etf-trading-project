@@ -6,6 +6,7 @@ import logging
 from app.config import settings
 from app.database import init_local_db
 from app.routers import health, data, predictions, factsheet
+from app.services.model_loader import get_model_loader
 
 # 로깅 설정
 logging.basicConfig(
@@ -22,7 +23,29 @@ async def lifespan(app: FastAPI):
     logger.info("Initializing ETF Trading ML Service...")
     init_local_db()
     logger.info("Local database initialized")
+
+    # Initialize ModelLoader (creates models directory if needed)
+    try:
+        model_loader = get_model_loader()
+        available_models = model_loader.list_available_models()
+        logger.info(f"ModelLoader initialized with {len(available_models)} available models")
+        for m in available_models:
+            logger.debug(f"  - {m.name} ({m.model_type})")
+
+        # Load default model
+        try:
+            model_loader.load_model(settings.default_model)
+            logger.info(f"Default model loaded: {settings.default_model}")
+        except FileNotFoundError:
+            logger.warning(
+                f"Default model {settings.default_model} not found. "
+                f"Run scripts/train_ahnlab.py to train the model."
+            )
+    except Exception as e:
+        logger.warning(f"ModelLoader initialization failed: {e}")
+
     yield
+
     # 종료 시
     logger.info("Shutting down ETF Trading ML Service...")
 
@@ -32,12 +55,12 @@ app = FastAPI(
     description="""
 ## ETF 트레이딩 데이터 파이프라인 API
 
-SSH 터널을 통해 원격 MySQL에서 주가 데이터를 조회하고,
-RSI/MACD 기반 예측을 수행합니다.
+AhnLab LightGBM LambdaRank 모델을 사용하여 전체 종목의
+상대 순위 랭킹을 예측합니다.
 
 ### 주요 기능
+- **랭킹 예측**: 전체 종목 상대 순위 예측 (85개 피처, 2-fold 앙상블)
 - **데이터 조회**: 원격 DB에서 OHLCV + 기술적 지표 조회
-- **예측**: 다음 날 주가 방향 예측
 - **저장**: 예측 결과를 로컬 SQLite에 저장
     """,
     version="1.0.0",

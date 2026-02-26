@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import datetime
 
-from app.database import get_remote_db, get_local_db
+from app.database import get_processed_db, get_local_db
 from app.services.prediction_service import PredictionService
 from app.services.dummy_data_service import (
     generate_candlestick_forecast,
@@ -18,27 +18,65 @@ from app.schemas import (
     PredictionHistoryResponse,
     PredictionWithPerformance,
     CandlestickForecastResponse,
-    CandlestickData
+    CandlestickData,
+    RankingResponse,
+    RankingItem,
+    ModelInfoResponse,
+    ModelListResponse,
+    ModelLoadRequest,
+    ModelLoadResponse,
 )
 
 router = APIRouter()
 
 
 def get_prediction_service(
-    remote_db: Session = Depends(get_remote_db),
+    processed_db: Session = Depends(get_processed_db),
     local_db: Session = Depends(get_local_db)
 ) -> PredictionService:
-    return PredictionService(remote_db, local_db)
+    return PredictionService(processed_db, local_db)
 
 
-# NOTE: /batch를 /{symbol}보다 먼저 선언해야 경로 충돌 방지
+# NOTE: /ranking, /batch를 /{symbol}보다 먼저 선언해야 경로 충돌 방지
+@router.post("/ranking", response_model=RankingResponse)
+def predict_ranking(
+    timeframe: str = Query("D", description="시간프레임"),
+    service: PredictionService = Depends(get_prediction_service)
+):
+    """
+    전체 종목 순위 예측 (주요 엔드포인트)
+
+    AhnLab LightGBM LambdaRank 모델로 전체 종목의 상대 순위를 예측합니다.
+    모든 종목의 rank, score, 매매 방향(BUY/SELL/HOLD)과 비율(weight)을 반환합니다.
+
+    - **timeframe**: 시간프레임 (기본: D=일봉)
+    """
+    try:
+        result = service.predict_ranking(timeframe)
+
+        return RankingResponse(
+            prediction_date=result["prediction_date"],
+            timeframe=result["timeframe"],
+            total_symbols=result["total_symbols"],
+            model_name=result["model_name"],
+            model_version=result.get("model_version"),
+            rankings=[RankingItem(**r) for r in result["rankings"]],
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ranking prediction failed: {str(e)}")
+
+
 @router.post("/batch", response_model=BatchPredictionResponse)
 def predict_batch(
     request: BatchPredictionRequest,
     service: PredictionService = Depends(get_prediction_service)
 ):
     """
-    여러 종목 일괄 예측
+    여러 종목 일괄 예측 (ranking으로 위임)
 
     - **symbols**: 예측할 종목 목록 (None이면 전체)
     - **limit**: 최대 종목 수 (기본 10)
@@ -47,9 +85,9 @@ def predict_batch(
         predictions = service.batch_predict(request.symbols, request.limit)
 
         return BatchPredictionResponse(
-            total=request.limit,
+            total=len(predictions),
             success=len(predictions),
-            failed=request.limit - len(predictions) if request.symbols is None else 0,
+            failed=0,
             predictions=[PredictionResponse.model_validate(p) for p in predictions]
         )
     except Exception as e:
@@ -80,7 +118,7 @@ def predict_single(
 @router.get("", response_model=PredictionListResponse)
 def list_predictions(
     symbol: Optional[str] = Query(None, description="종목 필터"),
-    limit: int = Query(50, ge=1, le=100, description="조회 수"),
+    limit: int = Query(50, ge=1, le=200, description="조회 수"),
     offset: int = Query(0, ge=0, description="오프셋"),
     service: PredictionService = Depends(get_prediction_service)
 ):
@@ -88,7 +126,7 @@ def list_predictions(
     저장된 예측 결과 조회
 
     - **symbol**: 종목 필터 (옵션)
-    - **limit**: 조회 수 (기본 50, 최대 100)
+    - **limit**: 조회 수 (기본 50, 최대 200)
     - **offset**: 페이지네이션 오프셋
     """
     predictions = service.get_predictions(symbol, limit, offset)
@@ -96,6 +134,43 @@ def list_predictions(
     return PredictionListResponse(
         count=len(predictions),
         predictions=[PredictionResponse.model_validate(p) for p in predictions]
+    )
+
+
+@router.get("/ranking/latest", response_model=RankingResponse)
+def get_latest_ranking(
+    service: PredictionService = Depends(get_prediction_service)
+):
+    """최신 랭킹 결과 조회 (저장된 결과)"""
+    predictions = service.get_latest_ranking()
+
+    if not predictions:
+        raise HTTPException(status_code=404, detail="No ranking results found")
+
+    metadata = service.get_current_model_info()
+    rankings = []
+    for p in predictions:
+        weight = 0.0
+        n = len(predictions)
+        if n > 1 and p.rank:
+            weight = 1.0 - 2.0 * (p.rank - 1) / (n - 1)
+
+        rankings.append(RankingItem(
+            symbol=p.symbol,
+            rank=p.rank or 0,
+            score=p.score or 0.0,
+            direction=p.predicted_direction,
+            weight=round(weight, 4),
+            current_close=p.current_close,
+        ))
+
+    return RankingResponse(
+        prediction_date=predictions[0].prediction_date,
+        timeframe="D",
+        total_symbols=len(rankings),
+        model_name=predictions[0].model_name or "ahnlab_lgbm",
+        model_version=metadata.version if metadata else None,
+        rankings=rankings,
     )
 
 
@@ -111,8 +186,6 @@ def get_prediction_history(
 
     - **symbol**: 종목 필터 (옵션, 없으면 전체)
     - **days**: 조회 기간 (기본 90일, 최대 365일)
-
-    3개월 이상 지난 예측은 실제 수익률(actual_return)이 포함됩니다.
     """
     history = generate_prediction_history(
         symbol=symbol.upper() if symbol else None,
@@ -150,18 +223,10 @@ def get_prediction_history(
 @router.get("/forecast/{symbol}", response_model=CandlestickForecastResponse)
 def get_candlestick_forecast(
     symbol: str,
-    days: int = Query(90, ge=30, le=365, description="예측 일 수 (MA120 포함시 210일 권장)"),
+    days: int = Query(90, ge=30, le=365, description="예측 일 수"),
     current_price: Optional[float] = Query(None, description="현재가 (옵션)")
 ):
-    """
-    향후 N일간 캔들스틱 예측 데이터 (더미)
-
-    - **symbol**: 종목 코드
-    - **days**: 예측 일 수 (기본 90일, 최대 365일, MA120 포함시 210일 권장)
-    - **current_price**: 시작 가격 (옵션, 없으면 샘플 데이터 사용)
-
-    Note: 현재는 더미 데이터입니다. 추후 ML 모델로 교체 예정.
-    """
+    """향후 N일간 캔들스틱 예측 데이터 (더미)"""
     stock_info = get_stock_info(symbol.upper())
     price = current_price if current_price else stock_info["current_price"]
 
@@ -208,3 +273,79 @@ def get_prediction(
         raise HTTPException(status_code=404, detail="Prediction not found")
 
     return PredictionResponse.model_validate(prediction)
+
+
+# Model Management Endpoints
+@router.get("/models", response_model=ModelListResponse)
+def list_models(
+    service: PredictionService = Depends(get_prediction_service)
+):
+    """사용 가능한 모델 목록 조회"""
+    models = service.get_available_models()
+
+    model_responses = [
+        ModelInfoResponse(
+            name=m.name,
+            model_type=m.model_type,
+            description=m.description,
+            version=m.version,
+            trained_at=m.trained_at,
+            training_years=m.training_years,
+            feature_count=m.feature_count,
+            file_path=m.file_path,
+        )
+        for m in models
+    ]
+
+    return ModelListResponse(count=len(model_responses), models=model_responses)
+
+
+@router.post("/models/{model_name}/load", response_model=ModelLoadResponse)
+def load_model(
+    model_name: str,
+    service: PredictionService = Depends(get_prediction_service)
+):
+    """특정 모델 로딩"""
+    try:
+        metadata = service.load_model(model_name)
+
+        return ModelLoadResponse(
+            success=True,
+            message=f"Model {model_name} loaded successfully",
+            model=ModelInfoResponse(
+                name=metadata.name,
+                model_type=metadata.model_type,
+                description=metadata.description,
+                version=metadata.version,
+                trained_at=metadata.trained_at,
+                training_years=metadata.training_years,
+                feature_count=metadata.feature_count,
+                file_path=metadata.file_path,
+            )
+        )
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load model: {str(e)}")
+
+
+@router.get("/models/current", response_model=ModelInfoResponse)
+def get_current_model(
+    service: PredictionService = Depends(get_prediction_service)
+):
+    """현재 로딩된 모델 정보 조회"""
+    metadata = service.get_current_model_info()
+
+    if metadata is None:
+        raise HTTPException(status_code=404, detail="No model currently loaded")
+
+    return ModelInfoResponse(
+        name=metadata.name,
+        model_type=metadata.model_type,
+        description=metadata.description,
+        version=metadata.version,
+        trained_at=metadata.trained_at,
+        training_years=metadata.training_years,
+        feature_count=metadata.feature_count,
+        file_path=metadata.file_path,
+    )

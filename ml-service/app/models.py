@@ -18,9 +18,12 @@ class Prediction(Base):
     confidence = Column(Float, nullable=False)
     rsi_value = Column(Float, nullable=True)
     macd_value = Column(Float, nullable=True)
+    rank = Column(Integer, nullable=True)  # 랭킹 순위 (1=최고)
+    score = Column(Float, nullable=True)  # 모델 예측 점수 (raw)
     actual_close = Column(Float, nullable=True)  # 나중에 업데이트
     actual_return = Column(Float, nullable=True)  # 실제 수익률 (%)
     is_correct = Column(Boolean, nullable=True)  # 나중에 업데이트
+    model_name = Column(String(50), nullable=True, default="ahnlab_lgbm")
     created_at = Column(DateTime, default=datetime.utcnow)
 
     def __repr__(self):

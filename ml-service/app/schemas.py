@@ -49,6 +49,8 @@ class PredictionResponse(BaseModel):
     predicted_close: float
     predicted_direction: str
     confidence: float
+    rank: Optional[int] = None
+    score: Optional[float] = None
     rsi_value: Optional[float] = None
     macd_value: Optional[float] = None
     actual_close: Optional[float] = None
@@ -74,6 +76,27 @@ class BatchPredictionResponse(BaseModel):
     success: int
     failed: int
     predictions: list[PredictionResponse]
+
+
+# Ranking Schemas
+class RankingItem(BaseModel):
+    """Single item in ranking response"""
+    symbol: str
+    rank: int
+    score: float
+    direction: str  # BUY, SELL, HOLD
+    weight: float  # 매매 비율 (-1.0 ~ 1.0)
+    current_close: Optional[float] = None
+
+
+class RankingResponse(BaseModel):
+    """Full ranking prediction response"""
+    prediction_date: datetime
+    timeframe: str
+    total_symbols: int
+    model_name: str
+    model_version: Optional[str] = None
+    rankings: list[RankingItem]
 
 
 # Health Check
@@ -187,3 +210,38 @@ class CandlestickForecastResponse(BaseModel):
     forecast_days: int
     data: list[CandlestickData]
     generated_at: datetime
+
+
+# Model Management Schemas
+class ModelInfoResponse(BaseModel):
+    """Model information response"""
+    name: str
+    model_type: str
+    description: str = ""
+    version: str = "1.0.0"
+    trained_at: Optional[str] = None
+    training_years: list[int] = []
+    feature_count: int = 0
+    file_path: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ModelListResponse(BaseModel):
+    """List of available models"""
+    count: int
+    models: list[ModelInfoResponse]
+
+
+class ModelLoadRequest(BaseModel):
+    """Request to load a specific model"""
+    model_name: str
+    force_reload: bool = False
+
+
+class ModelLoadResponse(BaseModel):
+    """Response after loading a model"""
+    success: bool
+    message: str
+    model: Optional[ModelInfoResponse] = None
