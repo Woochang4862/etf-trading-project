@@ -16,6 +16,6 @@ services:
       - ./auto-monitoring/hooks:/app/hooks
       - ./auto-monitoring/public:/app/public
       # 로그 파일들 마운트
-      - ./data-scraping/logs:/app/logs:ro
-      - ./data-scraping:/app/scraper-logs:ro
+      - ./scraper-service/logs:/app/logs:ro
+      - ./scraper-service:/app/scraper-logs:ro
     command: npm run dev

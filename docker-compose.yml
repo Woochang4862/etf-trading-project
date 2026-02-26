@@ -2,21 +2,25 @@ services:
   ml-service:
     build:
       context: ./ml-service
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.serving
     container_name: etf-ml-service
     expose:
       - "8000"
     environment:
       # host.docker.internal로 SSH 터널에 접근 (macOS/Windows 호환)
-      - REMOTE_DB_URL=mysql+pymysql://ahnbi2:bigdata@host.docker.internal:3306/etf2_db
+      - REMOTE_DB_URL=mysql+pymysql://ahnbi2:bigdata@172.17.0.1:3306/etf2_db
       - LOCAL_DB_PATH=/app/data/predictions.db
       - LOG_LEVEL=INFO
       - SUBMISSIONS_DIR=/app/submissions/tabpfn_v2
+      # ML Settings
+      - DEFAULT_MODEL=simple
+      - MODELS_DIR=/app/data/models
+      - ENABLE_ML_FEATURES=false
     volumes:
-      - ./data:/app/data
+      - ./ml-service/data:/app/data
       - ./etf-model/submissions:/app/submissions:ro
     extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - "host.docker.internal:172.17.0.1"
     restart: unless-stopped
     networks:
       - etf-network
@@ -45,19 +49,19 @@ services:
     expose:
       - "8001"
     environment:
-      - DB_URL=mysql+pymysql://ahnbi2:bigdata@host.docker.internal:3306/etf2_db
+      - DB_URL=mysql+pymysql://ahnbi2:bigdata@172.17.0.1:3306/etf2_db
       - LOG_DIR=/app/logs
       - DOWNLOAD_DIR=/app/downloads
       - HEADLESS=true
       - MAX_RETRIES=3
       - LOG_LEVEL=INFO
     volumes:
-      - ./data-scraping/logs:/app/logs
-      - ./data-scraping/downloads:/app/downloads
-      - ./data-scraping/cookies.json:/app/cookies.json:ro
-      - ./data-scraping/.env:/app/.env:ro
+      - ./scraper-service/logs:/app/logs
+      - ./scraper-service/downloads:/app/downloads
+      - ./scraper-service/cookies.json:/app/cookies.json:ro
+      - ./scraper-service/.env:/app/.env:ro
     extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - "host.docker.internal:172.17.0.1"
     restart: unless-stopped
     networks:
       - etf-network
@@ -71,9 +75,10 @@ services:
       - "3000"
     environment:
       - NODE_ENV=production
+      - LOG_DIR=/app/logs
     volumes:
-      # 스크래핑 로그 디렉토리 읽기 전용 마운트
-      - ./data-scraping/logs:/app/logs:ro
+      # 스크래핑 로그 디렉토리 마운트
+      - ./scraper-service/logs:/app/logs:ro
     restart: unless-stopped
     networks:
       - etf-network

@@ -19,13 +19,14 @@ ENV/
 data/
 *.db
 *.sqlite
-data-scraping/cookies.json
+scraper-service/cookies.json
+scraper-service/downloads/
+scraper-service/.env
+scraper-service/poetry.lock
 *.png
 .sisyphus/
 .playwright-mcp/
 .omc/
-data-scraping/downloads/
-data-scraping/tradingview_data/
 
 # IDE
 .idea/
@@ -43,3 +44,4 @@ Thumbs.db
 # Logs
 *.log
 logs/
+/data

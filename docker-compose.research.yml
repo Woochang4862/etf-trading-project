@@ -1,0 +1,48 @@
+# Research Docker Compose - Full ML stack for model development
+# Usage: docker-compose -f docker-compose.research.yml up
+services:
+  ml-service:
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile.research
+    container_name: etf-ml-service-research
+    expose:
+      - "8000"
+    ports:
+      - "8000:8000"  # Expose for local development
+    environment:
+      # Database connection
+      - REMOTE_DB_URL=mysql+pymysql://ahnbi2:bigdata@172.17.0.1:3306/etf2_db
+      - LOCAL_DB_PATH=/app/data/predictions.db
+      - LOG_LEVEL=DEBUG
+      # ML Settings
+      - DEFAULT_MODEL=simple
+      - MODELS_DIR=/app/data/models
+      - ENABLE_ML_FEATURES=true
+      # FRED API (for macro features)
+      - FRED_API_KEY=${FRED_API_KEY:-}
+    volumes:
+      - ./ml-service/data:/app/data
+      - ./ml-service/ml:/app/ml
+      - ./ml-service/experiments:/app/experiments
+      - ./etf-model/submissions:/app/submissions
+      # For GPU access (Linux hosts)
+      - /usr/lib/nvidia:/usr/lib/nvidia:ro
+      - /usr/lib32/nvidia:/usr/lib32/nvidia:ro
+    extra_hosts:
+      - "host.docker.internal:172.17.0.1"
+    runtime: nvidia  # Uncomment for GPU support
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+    restart: unless-stopped
+    networks:
+      - etf-network
+
+networks:
+  etf-network:
+    driver: bridge

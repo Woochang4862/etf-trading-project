@@ -45,19 +45,19 @@ for i in {1..30}; do
     sleep 2
 done
 
-# 3. 전체 종목 예측 실행 (최대 101개)
-echo "🚀 예측 실행 중..." >> "$LOG_FILE"
-RESULT=$(wget -q -O- --header="Content-Type: application/json" \
-    --post-data='{"limit": 101}' \
-    "http://localhost:8000/api/predictions/batch")
+# 3. 전체 종목 랭킹 예측 실행
+echo "🚀 랭킹 예측 실행 중..." >> "$LOG_FILE"
+RESULT=$(wget -q -O- --post-data='' \
+    "http://localhost:8000/api/predictions/ranking")
 
 # 결과 파싱
-SUCCESS=$(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('success', 0))" 2>/dev/null)
-TOTAL=$(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('total', 0))" 2>/dev/null)
+TOTAL=$(echo "$RESULT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('total_symbols', 0))" 2>/dev/null)
+TOP=$(echo "$RESULT" | python3 -c "import sys,json; r=json.load(sys.stdin)['rankings'][0]; print(f\"{r['symbol']} (score={r['score']})\")" 2>/dev/null)
 
-echo "📊 결과: $SUCCESS / $TOTAL 종목 예측 완료" >> "$LOG_FILE"
+echo "📊 결과: $TOTAL 종목 랭킹 예측 완료" >> "$LOG_FILE"
+echo "🏆 1위: $TOP" >> "$LOG_FILE"
 echo "완료 시간: $(date)" >> "$LOG_FILE"
 echo "" >> "$LOG_FILE"
 
 # 4. 요약 출력
-echo "✅ 일일 예측 완료: $SUCCESS/$TOTAL"
+echo "✅ 일일 랭킹 예측 완료: $TOTAL 종목, 1위: $TOP"
