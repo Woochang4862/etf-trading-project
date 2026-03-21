@@ -37,7 +37,7 @@ class DailyPurchase(Base):
     trading_day_number = Column(Integer, nullable=False)
     purchase_date = Column(Date, nullable=False)
     etf_code = Column(String(20), nullable=False)
-    quantity = Column(Integer, nullable=False)
+    quantity = Column(Float, nullable=False)  # 소수점 매매 지원
     price = Column(Float, nullable=False)
     total_amount = Column(Float, nullable=False)
     sold = Column(Boolean, default=False)
@@ -64,7 +64,7 @@ class OrderLog(Base):
     cycle_id = Column(Integer, ForeignKey("trading_cycles.id"), nullable=True)
     order_type = Column(String(10), nullable=False)  # BUY / SELL
     etf_code = Column(String(20), nullable=False)
-    quantity = Column(Integer, nullable=False)
+    quantity = Column(Float, nullable=False)  # 소수점 매매 지원
     price = Column(Float, nullable=True)
     order_id = Column(String(50), nullable=True)  # KIS 주문번호
     status = Column(String(20), nullable=False, default="PENDING")  # SUCCESS / FAILED / PENDING

@@ -35,7 +35,7 @@ class PurchaseItem(BaseModel):
     trading_day_number: int
     purchase_date: date
     etf_code: str
-    quantity: int
+    quantity: float
     price: float
     total_amount: float
     sold: bool
@@ -54,7 +54,7 @@ class OrderLogItem(BaseModel):
     cycle_id: Optional[int] = None
     order_type: str
     etf_code: str
-    quantity: int
+    quantity: float
     price: Optional[float] = None
     order_id: Optional[str] = None
     status: str
@@ -74,6 +74,8 @@ class TradingStatusResponse(BaseModel):
     next_trading_day: Optional[date] = None
     total_holdings: int = 0
     total_invested: float = 0.0
+    automation_enabled: bool = False
+    fractional_mode: bool = False
 
 
 class PortfolioResponse(BaseModel):
@@ -112,6 +114,35 @@ class NewCycleRequest(BaseModel):
 
 
 class NewCycleResponse(BaseModel):
+    success: bool
+    message: str
+    cycle: Optional[CycleStatus] = None
+
+
+# 잔고 조회
+class HoldingItem(BaseModel):
+    code: str
+    name: str
+    quantity: float
+    avg_price: float
+    current_price: float
+    pnl_rate: float
+    exchange_code: str
+
+
+class BalanceResponse(BaseModel):
+    available_cash_usd: float
+    total_evaluation_usd: float
+    available_cash_krw: float
+    total_evaluation_krw: float
+    exchange_rate: float  # USD/KRW
+    holdings: list[HoldingItem] = []
+    kis_connected: bool
+    error: Optional[str] = None
+
+
+# 사이클 리셋
+class ResetResponse(BaseModel):
     success: bool
     message: str
     cycle: Optional[CycleStatus] = None

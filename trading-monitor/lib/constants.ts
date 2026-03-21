@@ -4,7 +4,16 @@ export const API_ENDPOINTS = {
   PORTFOLIO: '/trading/api/trading/portfolio',
   HISTORY: '/trading/api/trading/history',
   ORDERS: '/trading/api/trading/orders',
+  AUTOMATION: '/trading/api/trading/automation',
+  BALANCE: '/trading/api/trading/balance',
+  RESET: '/trading/api/trading/reset',
   HEALTH: '/trading/api/health',
+  CHART_DATA: '/trading/api/data',       // + /{symbol}?timeframe=D&limit=100
+  FORECAST: '/trading/api/predictions/forecast', // + /{symbol}?days=30
+  SCRAPER_LOGS: '/trading/api/scraper/logs',
+  SCRAPER_STATUS: '/trading/api/scraper/status',
+  DB_TABLES: '/trading/api/db/tables',   // + ?db_name=etf2_db
+  DB_TABLE_DATA: '/trading/api/db/tables', // + /{tableName}/data?db_name=etf2_db
 } as const;
 
 // Refresh intervals (milliseconds)
@@ -14,6 +23,8 @@ export const REFRESH_INTERVALS = {
   ORDERS: 10000,     // 10 seconds
   HISTORY: 60000,    // 1 minute
   HEALTH: 30000,     // 30 seconds
+  SCRAPER_LOGS: 5000,  // 5 seconds
+  SCRAPER_STATUS: 10000, // 10 seconds
 } as const;
 
 // Trading service backend URL
