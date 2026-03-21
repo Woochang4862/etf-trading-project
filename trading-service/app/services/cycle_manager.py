@@ -48,7 +48,7 @@ class CycleManager:
         return cycle
 
     def get_current_trading_day(self, cycle: TradingCycle) -> int:
-        """KRX 달력 기준 거래일 카운트"""
+        """NYSE 달력 기준 거래일 카운트"""
         today = date.today()
         day_num = get_trading_day_number_since(cycle.cycle_start_date, today)
         return max(day_num, 1)

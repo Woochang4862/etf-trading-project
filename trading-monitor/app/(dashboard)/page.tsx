@@ -44,7 +44,7 @@ export default function DashboardPage() {
       <StatsCards status={status} />
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <AutomationStatus status={status} />
+        <AutomationStatus status={status} onRefetch={async () => { /* refetch on next interval */ }} />
         <PortfolioSummary portfolio={portfolio} />
         <RecentOrders orders={orders} />
       </div>

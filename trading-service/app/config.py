@@ -15,12 +15,16 @@ class Settings(BaseSettings):
     ml_service_url: str = "http://ml-service:8000"
 
     # 전략 파라미터
-    strategy_ratio: float = 0.7  # 전략 자금 비율
+    strategy_ratio: float = 0.7  # 전략 자금 비율 (ML 랭킹 기반)
     fixed_ratio: float = 0.3  # 고정 편입 비율
     top_n_etfs: int = 100  # 매수 종목 수
     cycle_trading_days: int = 63  # 순환 주기 (거래일)
-    fixed_etf_codes: list[str] = []  # 30% 고정 편입 ETF 코드 목록
+    fixed_etf_codes: list[str] = ["QQQ"]  # 30% 고정 편입 ETF 코드 목록
     order_type: str = "market"  # "market" (시장가) | "limit" (지정가)
+
+    # 해외주식 설정
+    default_exchange_code: str = "NASD"  # 기본 거래소 (NASD, NYSE, AMEX)
+    trade_currency: str = "USD"  # 거래 통화
 
     # 스케줄러
     trade_hour_kst: int = 8

@@ -1,7 +1,7 @@
 import asyncio
 import time
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
 import httpx
@@ -10,19 +10,21 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# KIS API tr_id 매핑
+# KIS API tr_id 매핑 (해외주식 - 미국 ETF용)
 TR_IDS = {
     "paper": {
-        "buy": "VTTC0802U",
-        "sell": "VTTC0801U",
-        "balance": "VTTC8434R",
-        "order_status": "VTTC8001R",
+        "buy": "VTTT1002U",
+        "sell": "VTTT1006U",
+        "balance": "VTTS3012R",
+        "order_status": "VTTS3018R",
+        "current_price": "HHDFS76200200",
     },
     "live": {
-        "buy": "TTTC0802U",
-        "sell": "TTTC0801U",
-        "balance": "TTTC8434R",
-        "order_status": "TTTC8001R",
+        "buy": "TTTT1002U",
+        "sell": "TTTT1006U",
+        "balance": "TTTS3012R",
+        "order_status": "TTTS3018R",
+        "current_price": "HHDFS76200200",
     },
 }
 
@@ -31,13 +33,38 @@ BASE_URLS = {
     "live": "https://openapi.koreainvestment.com:9443",
 }
 
+# 미국 거래소 코드 매핑
+EXCHANGE_CODE_MAP = {
+    "NASD": "NASD",   # NASDAQ
+    "NYSE": "NYSE",   # New York Stock Exchange
+    "AMEX": "AMEX",   # American Stock Exchange (NYSE American)
+}
+
+# 주요 ETF의 거래소 매핑 (필요시 확장)
+TICKER_EXCHANGE_MAP = {
+    "QQQ": "NASD", "TQQQ": "NASD", "SQQQ": "NASD",
+    "SPY": "AMEX", "VOO": "AMEX", "IVV": "AMEX",
+    "DIA": "AMEX", "IWM": "AMEX", "VTI": "AMEX",
+    "XLF": "AMEX", "XLK": "AMEX", "XLE": "AMEX",
+    "XLV": "AMEX", "XLI": "AMEX", "XLU": "AMEX",
+    "GLD": "AMEX", "SLV": "AMEX", "TLT": "NASD",
+    "HYG": "AMEX", "LQD": "AMEX", "EEM": "AMEX",
+    "VEA": "AMEX", "VWO": "AMEX", "ARKK": "AMEX",
+    "SOXX": "NASD", "SMH": "AMEX", "KWEB": "AMEX",
+}
+
+
+def get_exchange_code(ticker: str) -> str:
+    """티커에 해당하는 거래소 코드 반환 (기본값: NASD)"""
+    return TICKER_EXCHANGE_MAP.get(ticker.upper(), settings.default_exchange_code)
+
 
 @dataclass
 class OrderResult:
     success: bool
     order_id: Optional[str] = None
     price: float = 0.0
-    quantity: int = 0
+    quantity: float = 0.0
     message: str = ""
 
 
@@ -45,15 +72,12 @@ class OrderResult:
 class BalanceInfo:
     total_evaluation: float = 0.0
     available_cash: float = 0.0
-    holdings: list = None
-
-    def __post_init__(self):
-        if self.holdings is None:
-            self.holdings = []
+    currency: str = "USD"
+    holdings: list = field(default_factory=list)
 
 
 class KISClient:
-    """한국투자증권 API 래퍼"""
+    """한국투자증권 해외주식 API 래퍼 (미국 ETF 전용)"""
 
     def __init__(self):
         self._access_token: Optional[str] = None
@@ -103,7 +127,6 @@ class KISClient:
             data = resp.json()
 
         self._access_token = data["access_token"]
-        # 토큰 유효기간: 약 24시간, 안전하게 23시간으로 설정
         self._token_expires_at = now + 23 * 3600
         logger.info("KIS access token 발급 완료")
         return self._access_token
@@ -113,7 +136,7 @@ class KISClient:
         await self.get_access_token()
 
     async def get_balance(self) -> BalanceInfo:
-        """잔고 조회"""
+        """해외주식 잔고 조회"""
         await self._ensure_token()
         await self._rate_limit()
 
@@ -123,66 +146,72 @@ class KISClient:
             logger.error(f"잘못된 계좌번호 형식: {settings.kis_account_number}")
             return BalanceInfo()
 
-        url = f"{self._base_url}/uapi/domestic-stock/v1/trading/inquire-balance"
+        url = f"{self._base_url}/uapi/overseas-stock/v1/trading/inquire-balance"
         params = {
             "CANO": account_parts[0],
             "ACNT_PRDT_CD": account_parts[1],
-            "AFHR_FLPR_YN": "N",
-            "OFL_YN": "",
-            "INQR_DVSN": "02",
-            "UNPR_DVSN": "01",
-            "FUND_STTL_ICLD_YN": "N",
-            "FNCG_AMT_AUTO_RDPT_YN": "N",
-            "PRCS_DVSN": "01",
-            "CTX_AREA_FK100": "",
-            "CTX_AREA_NK100": "",
+            "OVRS_EXCG_CD": settings.default_exchange_code,
+            "TR_CRCY_CD": "USD",
+            "CTX_AREA_FK200": "",
+            "CTX_AREA_NK200": "",
         }
 
-        async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.get(url, headers=self._get_headers(tr_id), params=params)
-            resp.raise_for_status()
-            data = resp.json()
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.get(
+                    url, headers=self._get_headers(tr_id), params=params
+                )
+                resp.raise_for_status()
+                data = resp.json()
 
-        if data.get("rt_cd") != "0":
-            logger.error(f"잔고 조회 실패: {data.get('msg1', 'Unknown error')}")
+            if data.get("rt_cd") != "0":
+                logger.error(f"잔고 조회 실패: {data.get('msg1', 'Unknown error')}")
+                return BalanceInfo()
+
+            output2 = data.get("output2", {})
+            # 해외주식 잔고 응답: output2에 요약, output1에 보유종목
+            tot_evlu = float(output2.get("tot_evlu_pfls_amt", 0))
+            frcr_pchs_amt = float(output2.get("frcr_pchs_amt1", 0))
+            available = float(output2.get("ovrs_ord_psbl_amt", 0))
+
+            return BalanceInfo(
+                total_evaluation=tot_evlu + frcr_pchs_amt,
+                available_cash=available,
+                currency="USD",
+                holdings=[
+                    {
+                        "code": item.get("ovrs_pdno", ""),
+                        "name": item.get("ovrs_item_name", ""),
+                        "quantity": float(item.get("ovrs_cblc_qty", 0)),
+                        "avg_price": float(item.get("pchs_avg_pric", 0)),
+                        "current_price": float(item.get("now_pric2", 0)),
+                        "pnl_rate": float(item.get("evlu_pfls_rt", 0)),
+                        "exchange_code": item.get("ovrs_excg_cd", ""),
+                    }
+                    for item in data.get("output1", [])
+                    if float(item.get("ovrs_cblc_qty", 0)) > 0
+                ],
+            )
+        except httpx.HTTPError as e:
+            logger.error(f"잔고 조회 HTTP 오류: {e}")
             return BalanceInfo()
 
-        output2 = data.get("output2", [{}])
-        summary = output2[0] if output2 else {}
-
-        return BalanceInfo(
-            total_evaluation=float(summary.get("tot_evlu_amt", 0)),
-            available_cash=float(summary.get("dnca_tot_amt", 0)),
-            holdings=[
-                {
-                    "code": item.get("pdno", ""),
-                    "name": item.get("prdt_name", ""),
-                    "quantity": int(item.get("hldg_qty", 0)),
-                    "avg_price": float(item.get("pchs_avg_pric", 0)),
-                    "current_price": float(item.get("prpr", 0)),
-                    "pnl_rate": float(item.get("evlu_pfls_rt", 0)),
-                }
-                for item in data.get("output1", [])
-                if int(item.get("hldg_qty", 0)) > 0
-            ],
-        )
-
     async def buy_order(
-        self, code: str, qty: int, price: Optional[float] = None
+        self, code: str, qty: float, price: Optional[float] = None
     ) -> OrderResult:
-        """매수 주문"""
+        """해외주식 매수 주문"""
         return await self._place_order("buy", code, qty, price)
 
     async def sell_order(
-        self, code: str, qty: int, price: Optional[float] = None
+        self, code: str, qty: float, price: Optional[float] = None
     ) -> OrderResult:
-        """매도 주문"""
+        """해외주식 매도 주문"""
         return await self._place_order("sell", code, qty, price)
 
     async def _place_order(
-        self, side: str, code: str, qty: int, price: Optional[float] = None
+        self, side: str, code: str, qty: float, price: Optional[float] = None
     ) -> OrderResult:
-        """주문 실행 (매수/매도 공통)"""
+        """해외주식 주문 실행 (매수/매도 공통)"""
         await self._ensure_token()
         await self._rate_limit()
 
@@ -191,23 +220,24 @@ class KISClient:
         if len(account_parts) != 2:
             return OrderResult(success=False, message="잘못된 계좌번호 형식")
 
-        url = f"{self._base_url}/uapi/domestic-stock/v1/trading/order-cash"
+        url = f"{self._base_url}/uapi/overseas-stock/v1/trading/order"
+        exchange_code = get_exchange_code(code)
 
-        # 시장가 주문: ORD_DVSN=01, 지정가: ORD_DVSN=00
+        # 시장가 주문: OVRS_ORD_UNPR="0"
         if price is None or settings.order_type == "market":
-            ord_dvsn = "01"  # 시장가
-            ord_price = "0"
+            ord_unpr = "0"
         else:
-            ord_dvsn = "00"  # 지정가
-            ord_price = str(int(price))
+            ord_unpr = str(round(price, 2))
 
         body = {
             "CANO": account_parts[0],
             "ACNT_PRDT_CD": account_parts[1],
-            "PDNO": code,
-            "ORD_DVSN": ord_dvsn,
-            "ORD_QTY": str(qty),
-            "ORD_UNPR": ord_price,
+            "OVRS_EXCG_CD": exchange_code,
+            "PDNO": code.upper(),
+            "ORD_QTY": str(round(qty, 4)),
+            "OVRS_ORD_UNPR": ord_unpr,
+            "ORD_SVR_DVSN_CD": "0",
+            "ORD_DVSN": "00",
         }
 
         try:
@@ -223,7 +253,7 @@ class KISClient:
                 return OrderResult(
                     success=True,
                     order_id=output.get("ODNO", ""),
-                    price=float(output.get("ORD_UNPR", price or 0)),
+                    price=float(output.get("OVRS_ORD_UNPR", price or 0)),
                     quantity=qty,
                     message="주문 성공",
                 )
@@ -235,8 +265,41 @@ class KISClient:
         except httpx.HTTPError as e:
             return OrderResult(success=False, message=f"HTTP 오류: {str(e)}")
 
+    async def get_current_price(self, code: str) -> Optional[float]:
+        """해외주식 현재가 조회"""
+        await self._ensure_token()
+        await self._rate_limit()
+
+        tr_id = self._tr_ids["current_price"]
+        exchange_code = get_exchange_code(code)
+
+        url = f"{self._base_url}/uapi/overseas-price/v1/quotations/price"
+        params = {
+            "AUTH": "",
+            "EXCD": exchange_code,
+            "SYMB": code.upper(),
+        }
+
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.get(
+                    url, headers=self._get_headers(tr_id), params=params
+                )
+                resp.raise_for_status()
+                data = resp.json()
+
+            if data.get("rt_cd") == "0":
+                output = data.get("output", {})
+                price = float(output.get("last", 0))
+                if price > 0:
+                    return price
+        except Exception as e:
+            logger.warning(f"현재가 조회 실패 ({code}): {e}")
+
+        return None
+
     async def get_order_status(self, order_id: str) -> dict:
-        """체결 조회"""
+        """해외주식 체결 조회"""
         await self._ensure_token()
         await self._rate_limit()
 
@@ -245,28 +308,32 @@ class KISClient:
         if len(account_parts) != 2:
             return {"error": "잘못된 계좌번호 형식"}
 
-        url = f"{self._base_url}/uapi/domestic-stock/v1/trading/inquire-daily-ccld"
+        url = f"{self._base_url}/uapi/overseas-stock/v1/trading/inquire-ccnl"
         params = {
             "CANO": account_parts[0],
             "ACNT_PRDT_CD": account_parts[1],
-            "INQR_STRT_DT": "",
-            "INQR_END_DT": "",
-            "SLL_BUY_DVSN_CD": "00",
-            "INQR_DVSN": "00",
             "PDNO": "",
-            "CCLD_DVSN": "00",
+            "ORD_STRT_DT": "",
+            "ORD_END_DT": "",
+            "SLL_BUY_DVSN": "00",
+            "CCLD_NCCS_DVSN": "00",
+            "OVRS_EXCG_CD": settings.default_exchange_code,
+            "SORT_SQN": "DS",
             "ORD_GNO_BRNO": "",
             "ODNO": order_id,
-            "INQR_DVSN_3": "00",
-            "INQR_DVSN_1": "",
-            "CTX_AREA_FK100": "",
-            "CTX_AREA_NK100": "",
+            "CTX_AREA_FK200": "",
+            "CTX_AREA_NK200": "",
         }
 
-        async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.get(url, headers=self._get_headers(tr_id), params=params)
-            resp.raise_for_status()
-            return resp.json()
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.get(
+                    url, headers=self._get_headers(tr_id), params=params
+                )
+                resp.raise_for_status()
+                return resp.json()
+        except httpx.HTTPError as e:
+            return {"error": f"HTTP 오류: {str(e)}"}
 
 
 # 싱글턴

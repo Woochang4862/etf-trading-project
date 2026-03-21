@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter
 
@@ -6,6 +6,8 @@ from app.config import settings
 from app.schemas import HealthResponse
 
 router = APIRouter()
+
+KST = timezone(timedelta(hours=9))
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -25,5 +27,5 @@ def health_check():
         status="ok",
         trading_mode=settings.trading_mode,
         db=db_status,
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(KST),
     )

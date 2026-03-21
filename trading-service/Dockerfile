@@ -2,10 +2,13 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# System dependencies
+# System dependencies + timezone
 RUN apt-get update && apt-get install -y \
-    curl \
+    curl tzdata \
     && rm -rf /var/lib/apt/lists/*
+
+ENV TZ=Asia/Seoul
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # Poetry + dependencies
 RUN pip install --no-cache-dir poetry

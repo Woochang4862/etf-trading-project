@@ -2,14 +2,23 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging
+import os
 
 from app.config import settings
 from app.database import init_db
 
-# 로깅 설정
+# 타임존 KST 설정
+os.environ["TZ"] = "Asia/Seoul"
+try:
+    import time as _time
+    _time.tzset()
+except AttributeError:
+    pass
+
+# 로깅 설정 (KST)
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper()),
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    format="%(asctime)s [KST] - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 

@@ -5,9 +5,15 @@ import { useConnectionStatus } from '@/hooks/use-connection-status';
 
 const pageTitles: Record<string, string> = {
   '/': '대시보드',
+  '/scraping': '데이터 수집 관리',
+  '/preprocessing': '데이터 전처리 (피처 엔지니어링)',
+  '/model': 'ML 모니터링',
+  '/pipeline': '파이프라인 모니터링',
   '/calendar': '달력',
   '/portfolio': '포트폴리오',
+  '/db-viewer': 'DB 뷰어',
   '/settings': '설정',
+  '/admin': '관리자',
 };
 
 export function Header() {

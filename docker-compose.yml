@@ -35,8 +35,10 @@ services:
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=
+      - TRADING_SERVICE_URL=http://trading-service:8002
     depends_on:
       - ml-service
+      - trading-service
     restart: unless-stopped
     networks:
       - etf-network

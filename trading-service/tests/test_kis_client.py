@@ -5,14 +5,14 @@ from app.services.kis_client import KISClient, OrderResult, BalanceInfo, TR_IDS,
 
 class TestTrIdMapping:
     def test_paper_ids(self):
-        assert TR_IDS["paper"]["buy"] == "VTTC0802U"
-        assert TR_IDS["paper"]["sell"] == "VTTC0801U"
-        assert TR_IDS["paper"]["balance"] == "VTTC8434R"
+        assert TR_IDS["paper"]["buy"] == "VTTT1002U"
+        assert TR_IDS["paper"]["sell"] == "VTTT1006U"
+        assert TR_IDS["paper"]["balance"] == "VTTS3012R"
 
     def test_live_ids(self):
-        assert TR_IDS["live"]["buy"] == "TTTC0802U"
-        assert TR_IDS["live"]["sell"] == "TTTC0801U"
-        assert TR_IDS["live"]["balance"] == "TTTC8434R"
+        assert TR_IDS["live"]["buy"] == "TTTT1002U"
+        assert TR_IDS["live"]["sell"] == "TTTT1006U"
+        assert TR_IDS["live"]["balance"] == "TTTS3012R"
 
 
 class TestBaseUrls:
