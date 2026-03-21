@@ -7,18 +7,18 @@ services:
     expose:
       - "8000"
     environment:
-      # host.docker.internal로 SSH 터널에 접근 (macOS/Windows 호환)
+      - TZ=Asia/Seoul
       - REMOTE_DB_URL=mysql+pymysql://ahnbi2:bigdata@172.17.0.1:3306/etf2_db
       - LOCAL_DB_PATH=/app/data/predictions.db
       - LOG_LEVEL=INFO
       - SUBMISSIONS_DIR=/app/submissions/tabpfn_v2
-      # ML Settings
       - DEFAULT_MODEL=simple
       - MODELS_DIR=/app/data/models
       - ENABLE_ML_FEATURES=false
     volumes:
       - ./ml-service/data:/app/data
       - ./etf-model/submissions:/app/submissions:ro
+      - /usr/share/zoneinfo/Asia/Seoul:/etc/localtime:ro
     extra_hosts:
       - "host.docker.internal:172.17.0.1"
     restart: unless-stopped
@@ -33,6 +33,7 @@ services:
     expose:
       - "3000"
     environment:
+      - TZ=Asia/Seoul
       - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=
       - TRADING_SERVICE_URL=http://trading-service:8002
@@ -51,6 +52,7 @@ services:
     expose:
       - "8001"
     environment:
+      - TZ=Asia/Seoul
       - DB_URL=mysql+pymysql://ahnbi2:bigdata@172.17.0.1:3306/etf2_db
       - LOG_DIR=/app/logs
       - DOWNLOAD_DIR=/app/downloads
@@ -62,6 +64,7 @@ services:
       - ./scraper-service/downloads:/app/downloads
       - ./scraper-service/cookies.json:/app/cookies.json:ro
       - ./scraper-service/.env:/app/.env:ro
+      - /usr/share/zoneinfo/Asia/Seoul:/etc/localtime:ro
     extra_hosts:
       - "host.docker.internal:172.17.0.1"
     restart: unless-stopped
@@ -76,10 +79,10 @@ services:
     expose:
       - "3000"
     environment:
+      - TZ=Asia/Seoul
       - NODE_ENV=production
       - LOG_DIR=/app/logs
     volumes:
-      # 스크래핑 로그 디렉토리 마운트
       - ./scraper-service/logs:/app/logs:ro
     restart: unless-stopped
     networks:
@@ -94,6 +97,8 @@ services:
       - "8002:8002"
     env_file:
       - trading-service/.env
+    environment:
+      - TZ=Asia/Seoul
     volumes:
       - ./trading-service/data:/app/data
     depends_on:
@@ -115,6 +120,7 @@ services:
     ports:
       - "3002:3002"
     environment:
+      - TZ=Asia/Seoul
       - TRADING_SERVICE_URL=http://trading-service:8002
       - ML_SERVICE_URL=http://ml-service:8000
       - SCRAPER_SERVICE_URL=http://scraper-service:8001
@@ -127,6 +133,8 @@ services:
     container_name: etf-nginx
     ports:
       - "80:80"
+    environment:
+      - TZ=Asia/Seoul
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
